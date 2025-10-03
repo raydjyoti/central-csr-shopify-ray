@@ -6,7 +6,7 @@
   "scripts": {
     "shopify": "shopify",
     "build": "shopify app build",
-    "dev": "shopify app dev",
+    "dev": "bash ./scripts/dev-with-ngrok.sh",
     "info": "shopify app info",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy"

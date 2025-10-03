@@ -1,6 +1,8 @@
 // web/routes/settings.js
 import express from "express";
 import { supabase } from "../supabase.js";
+import { getMongoClient, getMongoDb } from "../mongodb.js";
+import { ObjectId } from "mongodb";
 import axios from "axios";
 import shopify from "../shopify.js";
 
@@ -152,6 +154,8 @@ settingsRouter.post(
           try { await rest.delete({ path: `script_tags/${tag.id}` }); } catch (e) { /* ignore */ }
         }
 
+
+
         // Only create a new tag if we have a selected chat agent
         if (saved?.chat_agent_id || chat_agent_id) {
           const agentId = saved?.chat_agent_id || chat_agent_id;
@@ -188,6 +192,51 @@ settingsRouter.post(
         }
       } catch (mountErr) {
         console.error('Failed to mount widget ScriptTag:', mountErr?.response?.data || mountErr);
+      }
+
+      // Reflect Shopify store domain on the selected chatbot in MongoDB
+      try {
+        const agentId = saved?.chat_agent_id || chat_agent_id;
+        if (agentId) {
+          const db = await getMongoDb();
+          const chatbotsCol = db.collection('chatbots');
+
+          try {
+            const collections = await db.listCollections({ name: 'chatbots' }).toArray();
+            // Probe for the document
+            let byObjectId = false;
+            try {
+              const probeObjId = await chatbotsCol.findOne({ _id: new ObjectId(String(agentId)) });
+              byObjectId = Boolean(probeObjId);
+            } catch {}
+            const probeStr = await chatbotsCol.findOne({ _id: String(agentId) });
+            console.log('[MongoDBG] probe => byObjectId:', byObjectId, 'byStringId:', Boolean(probeStr));
+          } catch (dbgErr) {
+            console.warn('[MongoDBG] debug failed:', dbgErr?.message || dbgErr);
+          }
+
+          let matched = 0;
+          // Try ObjectId match first
+          try {
+            const resObjId = await chatbotsCol.updateOne(
+              { _id: new ObjectId(String(agentId)) },
+              { $set: { shopifyStoreName: shop } }
+            );
+            matched = resObjId?.matchedCount || 0;
+          } catch {
+            // ignore invalid ObjectId
+          }
+
+          // Fallback: string _id
+          if (matched === 0) {
+            await chatbotsCol.updateOne(
+              { _id: String(agentId) },
+              { $set: { shopifyStoreName: shop } }
+            );
+          }
+        }
+      } catch (mongoErr) {
+        console.error('Failed to update chatbot shopifyStoreName in MongoDB:', mongoErr);
       }
 
       res.json({ ...saved, central_user_id: shopRow?.central_user_id ?? null });

@@ -16,16 +16,12 @@ export default function Index() {
   const [showWorkspaceConfirm, setShowWorkspaceConfirm] = useState(false);
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState("");
 
-  console.log(chatbots, "chatbots");
-
 
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch("/api/settings", { credentials: "include" });
         const data = await res.json();
-
-        console.log("data:", data);
         setWorkspaceId(data?.workspace_id ?? "");
         setChatAgentId(data?.chat_agent_id ?? "");
         setConnectedToCentral(Boolean(data?.central_user_id || data?.workspace_id));

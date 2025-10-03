@@ -37,6 +37,8 @@ app.get(
       const session = res.locals.shopify.session;
       const { shop, accessToken, scope } = session;
 
+      console.log("session:", session, "🟡");
+
       // Save install (update-then-insert to avoid requiring a unique constraint)
       const nowIso = new Date().toISOString();
       const updateResult = await supabase

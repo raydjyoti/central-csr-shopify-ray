@@ -16,10 +16,15 @@ const billingConfig = {
   },
 };
 
+// Derive hostName explicitly so production doesn't rely on implicit env parsing
+const appUrl = process.env.HOST || process.env.SHOPIFY_APP_URL || "";
+const derivedHostName = appUrl ? new URL(appUrl).host : undefined;
+
 const shopify = shopifyApp({
   api: {
     apiVersion: LATEST_API_VERSION,
     restResources,
+    hostName: derivedHostName,
     future: {
       customerAddressDefaultFix: true,
       lineItemBilling: true,

@@ -9,7 +9,8 @@
     "dev": "bash ./scripts/dev-with-ngrok.sh",
     "info": "shopify app info",
     "generate": "shopify app generate",
-    "deploy": "shopify app deploy"
+    "deploy": "shopify app deploy",
+    "start": "npm --workspace web run serve"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

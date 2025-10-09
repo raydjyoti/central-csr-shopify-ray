@@ -90,7 +90,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .eq("shop_domain", shop)
       .maybeSingle();
 
-    console.log({linked}, "🔥");
+
     if (linkErr) return res.status(500).json({ error: "Failed to read linked user" });
     const centralUserId = linked?.central_user_id || null;
     if (!centralUserId) return res.status(401).json({ error: "No Central user linked" });

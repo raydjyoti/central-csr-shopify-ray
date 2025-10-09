@@ -2,7 +2,7 @@
 
 client_id = "2e298c46f441578735f8c2fb971e262e"
 name = "Central Chats"
-application_url = "https://suit-docs-sponsor-feet.trycloudflare.com"
+application_url = "https://shopify-app-template-node-production-2adb.up.railway.app"
 embedded = true
 
 [build]
@@ -17,4 +17,4 @@ api_version = "2025-10"
 scopes = "read_products,read_orders,read_script_tags,write_script_tags"
 
 [auth]
-redirect_urls = [ "https://suit-docs-sponsor-feet.trycloudflare.com/api/auth/callback"]
+redirect_urls = [ "https://shopify-app-template-node-production-2adb.up.railway.app/api/auth/callback"]

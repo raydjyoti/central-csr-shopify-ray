@@ -159,8 +159,10 @@ centralOAuthRouter.get("/api/central/oauth/callback", async (req, res) => {
     if (!code || !state) return res.status(400).send("Missing code/state");
 
     const shop = unpackState(String(state));
-    console.log({shop}, "💀");
+    
     if (!shop) return res.status(400).send("Invalid state");
+
+    console.log({shop}, {redirect_uri: process.env.CENTRAL_OAUTH_REDIRECT_URI}, {code}, {client_id: process.env.SHOPIFY_OAUTH_CLIENT_ID}, {client_secret: process.env.SHOPIFY_OAUTH_CLIENT_SECRET}, {central_oauth_token_url: process.env.CENTRAL_OAUTH_TOKEN_URL}, "🔥");
 
     const tokenRes = await axios.post(process.env.CENTRAL_OAUTH_TOKEN_URL, {
       grant_type: "authorization_code",

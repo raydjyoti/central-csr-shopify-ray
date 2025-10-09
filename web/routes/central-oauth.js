@@ -66,7 +66,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
     const workspaceId = String(req.query?.workspace_id || "").trim();
     const shop = String(req.query?.shop || "").trim();
 
-    console.log(workspaceId, shop, "🥎");
+    console.log({workspaceId}, {shop}, "🥎");
 
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace_id" });
     if (!shop) return res.status(400).json({ error: "Missing shop" });
@@ -78,6 +78,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .eq("shop_domain", shop)
       .maybeSingle();
 
+    console.log({shopRow}, "✅");
 
     if (shopErr) return res.status(500).json({ error: "Failed to validate shop" });
     if (!shopRow) return res.status(401).json({ error: "Unknown shop" });
@@ -88,6 +89,8 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .select("central_user_id")
       .eq("shop_domain", shop)
       .maybeSingle();
+
+    console.log({linked}, "🔥");
     if (linkErr) return res.status(500).json({ error: "Failed to read linked user" });
     const centralUserId = linked?.central_user_id || null;
     if (!centralUserId) return res.status(401).json({ error: "No Central user linked" });
@@ -102,7 +105,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .order("access_token_expires_at", { ascending: false })
       .limit(1);
 
-
+    console.log({tokensRows}, "🔥");
     if (tokErr) return res.status(500).json({ error: "Failed to read tokens" });
     const tok = tokensRows && tokensRows[0];
     if (!tok) return res.status(401).json({ error: "No Central token found" });
@@ -112,6 +115,8 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
     let accessToken = tok.access_token;
     const isAccessValid = tok.access_token_expires_at && tok.access_token_expires_at > nowIso;
     const canRefresh = tok.refresh_token_expires_at && tok.refresh_token_expires_at > nowIso && tok.refresh_token;
+
+    console.log({isAccessValid}, {canRefresh}, "😎");
 
     if (!isAccessValid && canRefresh) {
       try {
@@ -128,7 +133,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
     }
     if (!accessToken) return res.status(401).json({ error: "Central access token unavailable" });
 
-
+    console.log({accessToken}, "🔥", "🔥");
     const resp = await axios.get(
       `${process.env.CENTRAL_CSR_BACKEND_URL}/api/chatbot/all/oAuth`,
       {

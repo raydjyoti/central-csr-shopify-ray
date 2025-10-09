@@ -175,9 +175,10 @@ centralOAuthRouter.get("/api/central/oauth/callback", async (req, res) => {
 
     // Tokens are stored by Central in oauth_tokens; no need to duplicate in widget_config
 
-    // Redirect directly to the Shopify Admin app URL
-    const store = shop.replace(".myshopify.com", "");
-    return res.redirect(`https://admin.shopify.com/store/${encodeURIComponent(store)}/apps/central-chats`);
+    // Redirect through the app's Shopify auth entry to ensure a valid session
+    // This avoids "ensureInstalledOnShop did not receive a shop query argument"
+    // by explicitly providing the shop domain to the app middleware.
+    return res.redirect(`/api/auth?shop=${encodeURIComponent(shop)}`);
   } catch (e) {
     console.error("central oauth callback error:", e?.response?.data || e);
     return res.status(500).send("Central authorization failed");

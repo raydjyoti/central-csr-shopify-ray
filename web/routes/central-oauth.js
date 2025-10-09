@@ -78,7 +78,6 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .eq("shop_domain", shop)
       .maybeSingle();
 
-    console.log({shopRow}, "✅");
 
     if (shopErr) return res.status(500).json({ error: "Failed to validate shop" });
     if (!shopRow) return res.status(401).json({ error: "Unknown shop" });
@@ -105,7 +104,6 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .order("access_token_expires_at", { ascending: false })
       .limit(1);
 
-    console.log({tokensRows}, "🔥");
     if (tokErr) return res.status(500).json({ error: "Failed to read tokens" });
     const tok = tokensRows && tokensRows[0];
     if (!tok) return res.status(401).json({ error: "No Central token found" });
@@ -116,7 +114,6 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
     const isAccessValid = tok.access_token_expires_at && tok.access_token_expires_at > nowIso;
     const canRefresh = tok.refresh_token_expires_at && tok.refresh_token_expires_at > nowIso && tok.refresh_token;
 
-    console.log({isAccessValid}, {canRefresh}, "😎");
 
     if (!isAccessValid && canRefresh) {
       try {
@@ -133,7 +130,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
     }
     if (!accessToken) return res.status(401).json({ error: "Central access token unavailable" });
 
-    console.log({accessToken}, "🔥", "🔥");
+
     const resp = await axios.get(
       `${process.env.CENTRAL_CSR_BACKEND_URL}/api/chatbot/all/oAuth`,
       {
@@ -162,6 +159,7 @@ centralOAuthRouter.get("/api/central/oauth/callback", async (req, res) => {
     if (!code || !state) return res.status(400).send("Missing code/state");
 
     const shop = unpackState(String(state));
+    console.log({shop}, "💀");
     if (!shop) return res.status(400).send("Invalid state");
 
     const tokenRes = await axios.post(process.env.CENTRAL_OAUTH_TOKEN_URL, {

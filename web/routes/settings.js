@@ -27,12 +27,13 @@ settingsRouter.get(
   async (_req, res) => {
     try {
       const shop = res.locals.shopify.session.shop;
+      console.log("📥 [GET /api/settings] shop:", shop);
       const { data, error } = await supabase
         .from("chats_shopify_settings")
         .select("*")
         .eq("shop_domain", shop)
         .maybeSingle();
-
+      console.log("📦 [GET /api/settings] row:", data, "err:", error || null);
       if (error) return res.status(500).json({ error: "DB error" });
 
       // Also fetch connection info from chats_shopify_shops (central_user_id is set after OAuth)
@@ -43,6 +44,7 @@ settingsRouter.get(
         .maybeSingle();
 
       if (shopErr) console.error("GET /api/settings shopRow error", shopErr);
+      console.log("🔗 [GET /api/settings] central_user_id:", shopRow?.central_user_id || null);
 
       // If we have a linked Central user, fetch their workspaces list for selection
       let workspaces = [];
@@ -73,11 +75,13 @@ settingsRouter.get(
       );
 
       // Merge central_user_id for frontend to detect connection state
-      res.json({
+      const response = {
         ...responsePayload,
         central_user_id: shopRow?.central_user_id ?? null,
         workspaces,
-      });
+      };
+      console.log("📤 [GET /api/settings] response:", response);
+      res.json(response);
     } catch (e) {
       console.error("GET /api/settings error", e);
       res.status(500).json({ error: "Server error" });
@@ -94,6 +98,7 @@ settingsRouter.post(
     try {
       const shop = res.locals.shopify.session.shop;
       const { chat_agent_id, workspace_id } = req.body || {};
+      console.log("📝 [POST /api/settings] incoming:", { shop, chat_agent_id, workspace_id });
 
       // Read → update or insert to ensure a row is always returned
       const { data: existing, error: readErr } = await supabase
@@ -101,6 +106,7 @@ settingsRouter.post(
         .select("*")
         .eq("shop_domain", shop)
         .maybeSingle();
+      console.log("🔎 [POST /api/settings] existing:", existing, "err:", readErr || null);
       if (readErr) return res.status(500).json({ error: "DB error" });
 
       const payload = {
@@ -118,6 +124,7 @@ settingsRouter.post(
           .eq("shop_domain", shop)
           .select("*")
           .maybeSingle();
+        console.log("🔧 [POST /api/settings] update result:", upd, "err:", updErr || null);
         if (updErr) return res.status(500).json({ error: "DB error" });
         saved = upd;
       } else {
@@ -126,6 +133,7 @@ settingsRouter.post(
           .insert(payload)
           .select("*")
           .maybeSingle();
+        console.log("➕ [POST /api/settings] insert result:", ins, "err:", insErr || null);
         if (insErr) return res.status(500).json({ error: "DB error" });
         saved = ins;
       }
@@ -137,6 +145,7 @@ settingsRouter.post(
         .eq("shop_domain", shop)
         .maybeSingle();
       if (shopErr) console.error("POST /api/settings shopRow error", shopErr);
+      console.log("🔗 [POST /api/settings] central_user_id:", shopRow?.central_user_id || null);
 
       // Mount or update the storefront widget via ScriptTag
       try {
@@ -239,7 +248,9 @@ settingsRouter.post(
         console.error('Failed to update chatbot shopifyStoreName in MongoDB:', mongoErr);
       }
 
-      res.json({ ...saved, central_user_id: shopRow?.central_user_id ?? null });
+      const out = { ...saved, central_user_id: shopRow?.central_user_id ?? null };
+      console.log("✅ [POST /api/settings] response:", out);
+      res.json(out);
     } catch (e) {
       console.error("POST /api/settings error", e);
       res.status(500).json({ error: "Server error" });

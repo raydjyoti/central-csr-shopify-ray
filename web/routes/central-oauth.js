@@ -33,12 +33,14 @@ centralOAuthRouter.get(
   "/api/central/oauth/start",
   async (req, res) => {
     try {
+      console.log("🚀 [central:start] query:", req.query);
       // Prefer explicit shop param from the top-level window, fallback to session if available
       const shopParam = req.query?.shop ? String(req.query.shop) : null;
       const sessionShop = res?.locals?.shopify?.session?.shop || null;
       const shop = shopParam || sessionShop;
 
       if (!shop) {
+        console.warn("⚠️ [central:start] missing shop; sessionShop=", sessionShop);
         return res.status(400).send("Missing shop");
       }
 
@@ -49,7 +51,7 @@ centralOAuthRouter.get(
       url.searchParams.set("redirect_uri", process.env.CENTRAL_OAUTH_REDIRECT_URI);
       url.searchParams.set("scope", "read:workspaces");
       url.searchParams.set("state", state);
-
+      console.log("🧭 [central:start] redirect →", url.toString());
       return res.redirect(url.toString()); // top-level redirect out of iframe
     } catch (e) {
       console.error("central oauth start error:", e);
@@ -65,8 +67,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
 
     const workspaceId = String(req.query?.workspace_id || "").trim();
     const shop = String(req.query?.shop || "").trim();
-
-    console.log({workspaceId}, {shop}, "🥎");
+    console.log("🤖 [chatbots] params:", { workspaceId, shop });
 
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace_id" });
     if (!shop) return res.status(400).json({ error: "Missing shop" });
@@ -77,8 +78,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .select("shop_domain")
       .eq("shop_domain", shop)
       .maybeSingle();
-
-
+    console.log("🧪 [chatbots] shopRow:", shopRow, "err:", shopErr || null);
     if (shopErr) return res.status(500).json({ error: "Failed to validate shop" });
     if (!shopRow) return res.status(401).json({ error: "Unknown shop" });
 
@@ -88,8 +88,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .select("central_user_id")
       .eq("shop_domain", shop)
       .maybeSingle();
-
-
+    console.log("🧩 [chatbots] linked:", linked, "err:", linkErr || null);
     if (linkErr) return res.status(500).json({ error: "Failed to read linked user" });
     const centralUserId = linked?.central_user_id || null;
     if (!centralUserId) return res.status(401).json({ error: "No Central user linked" });
@@ -103,7 +102,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
       .eq("client_id", process.env.SHOPIFY_OAUTH_CLIENT_ID)
       .order("access_token_expires_at", { ascending: false })
       .limit(1);
-
+    console.log("🔑 [chatbots] tokensRows:", Array.isArray(tokensRows) ? tokensRows.length : null, tokErr || null);
     if (tokErr) return res.status(500).json({ error: "Failed to read tokens" });
     const tok = tokensRows && tokensRows[0];
     if (!tok) return res.status(401).json({ error: "No Central token found" });
@@ -113,8 +112,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
     let accessToken = tok.access_token;
     const isAccessValid = tok.access_token_expires_at && tok.access_token_expires_at > nowIso;
     const canRefresh = tok.refresh_token_expires_at && tok.refresh_token_expires_at > nowIso && tok.refresh_token;
-
-
+    console.log("⏱️ [chatbots] token valid:", !!isAccessValid, "canRefresh:", !!canRefresh);
     if (!isAccessValid && canRefresh) {
       try {
         const r = await axios.post(process.env.CENTRAL_OAUTH_TOKEN_URL, {
@@ -124,13 +122,13 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
           client_secret: process.env.SHOPIFY_OAUTH_CLIENT_SECRET,
         }, { headers: { "Content-Type": "application/json" }, timeout: 15000 });
         accessToken = r.data?.access_token || accessToken;
+        console.log("🔄 [chatbots] refreshed token success:", Boolean(r.data?.access_token));
       } catch (refreshErr) {
         console.error("Central token refresh failed:", refreshErr?.response?.data || refreshErr?.message || refreshErr);
       }
     }
     if (!accessToken) return res.status(401).json({ error: "Central access token unavailable" });
-
-
+    console.log("📡 [chatbots] fetching chatbots… workspace:", workspaceId);
     const resp = await axios.get(
       `${process.env.CENTRAL_CSR_BACKEND_URL}/api/chatbot/all/oAuth`,
       {
@@ -141,9 +139,7 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
         timeout: 15000,
       }
     );
-
-
-
+    console.log("📦 [chatbots] resp status:", resp.status, "items:", Array.isArray(resp.data) ? resp.data.length : null);
     const chatbots = Array.isArray(resp.data) ? resp.data : [];
     return res.json({ chatbots });
   } catch (e) {
@@ -156,13 +152,14 @@ centralOAuthRouter.get("/api/chatbots", async (req, res) => {
 centralOAuthRouter.get("/api/central/oauth/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
+    console.log("🎯 [central:callback] query:", req.query);
     if (!code || !state) return res.status(400).send("Missing code/state");
 
     const shop = unpackState(String(state));
     
     if (!shop) return res.status(400).send("Invalid state");
 
-    console.log({shop}, {redirect_uri: process.env.CENTRAL_OAUTH_REDIRECT_URI}, {code}, {client_id: process.env.SHOPIFY_OAUTH_CLIENT_ID}, {client_secret: process.env.SHOPIFY_OAUTH_CLIENT_SECRET}, {central_oauth_token_url: process.env.CENTRAL_OAUTH_TOKEN_URL}, "🔥");
+    console.log("🧾 [central:callback] shop:", shop, "redirect_uri:", process.env.CENTRAL_OAUTH_REDIRECT_URI, "token_url:", process.env.CENTRAL_OAUTH_TOKEN_URL);
 
     const tokenRes = await axios.post(process.env.CENTRAL_OAUTH_TOKEN_URL, {
       grant_type: "authorization_code",
@@ -173,14 +170,16 @@ centralOAuthRouter.get("/api/central/oauth/callback", async (req, res) => {
       shop_domain: shop, // lets Central link shop → user/workspace
     }, { headers: { "Content-Type": "application/json" }, timeout: 15000 });
 
+    console.log("✅ [central:callback] token status:", tokenRes.status, "keys:", Object.keys(tokenRes.data || {}));
     // Tokens are stored by Central in oauth_tokens; no need to duplicate in widget_config
 
     // Redirect through the app's Shopify auth entry to ensure a valid session
     // This avoids "ensureInstalledOnShop did not receive a shop query argument"
     // by explicitly providing the shop domain to the app middleware.
+    console.log("↪️ [central:callback] redirect → /api/auth?shop=…", shop);
     return res.redirect(`/api/auth?shop=${encodeURIComponent(shop)}`);
   } catch (e) {
-    console.error("central oauth callback error:", e?.response?.data || e);
+    console.error("❌ [central:callback] error:", e?.response?.data || e);
     return res.status(500).send("Central authorization failed");
   }
 });

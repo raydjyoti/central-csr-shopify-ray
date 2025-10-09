@@ -26,7 +26,10 @@ const STATIC_PATH =
 const app = express();
 
 // Set up Shopify authentication and webhook handling
-app.get(shopify.config.auth.path, shopify.auth.begin());
+app.get(shopify.config.auth.path, (req, res, next) => {
+  console.log("🧭 [/api/auth] begin query:", req.query);
+  next();
+}, shopify.auth.begin());
 
 
 app.get(
@@ -37,7 +40,7 @@ app.get(
       const session = res.locals.shopify.session;
       const { shop, accessToken, scope } = session;
 
-      console.log("session:", session, "🟡");
+      console.log("✅ [/api/auth/callback] session shop:", shop, "scope:", scope ? scope.split(",").length : 0);
 
       // Save install (update-then-insert to avoid requiring a unique constraint)
       const nowIso = new Date().toISOString();
@@ -52,7 +55,7 @@ app.get(
         .select("shop_domain");
 
       if (updateResult.error) {
-        console.error("Supabase update error:", updateResult.error);
+        console.error("❌ [install] Supabase update error:", updateResult.error);
         res.status(500).send("Failed to save shop session");
         return;
       }
@@ -68,13 +71,14 @@ app.get(
           });
 
         if (insertResult.error) {
-          console.error("Supabase insert error:", insertResult.error);
+          console.error("❌ [install] Supabase insert error:", insertResult.error);
           res.status(500).send("Failed to save shop session");
           return;
         }
       }
 
       // Register webhooks for this shop
+      console.log("🔔 [webhooks] registering…");
       await shopify.api.webhooks.addHandlers({
         APP_UNINSTALLED: {
           deliveryMethod: DeliveryMethod.Http,
@@ -95,10 +99,11 @@ app.get(
       });
 
       // continue to the built-in redirect middleware
+      console.log("🏁 [/api/auth/callback] redirecting to app root…");
       next();
       return;
     } catch (err) {
-      console.error("Error during Shopify auth callback handling:", err);
+      console.error("❌ [/api/auth/callback] handler error:", err);
       res.status(500).send("Internal error during Shopify auth callback");
       return;
     }
@@ -139,7 +144,7 @@ app.use(express.json());
 // callback can work without a Shopify session, while the start route still
 // validates via its own middleware.
 app.use(centralOAuthRouter);
-app.use("/api", shopify.validateAuthenticatedSession());
+app.use("/api", (req, res, next) => { console.log("🛡️ [guard]/api path:", req.path); next(); }, shopify.validateAuthenticatedSession());
 app.use(settingsRouter);
 
 
@@ -176,7 +181,7 @@ app.post("/api/products", async (_req, res) => {
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
 
-app.use(/^(?!\/api).*/, shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
+app.use(/^(?!\/api).*/, (req, _res, next) => { console.log("🏠 [app root] path:", req.path, "query:", req.query); next(); }, shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
   res
     .status(200)
     .set("Content-Type", "text/html")

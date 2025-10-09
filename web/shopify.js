@@ -17,8 +17,31 @@ const billingConfig = {
 };
 
 // Derive hostName explicitly so production doesn't rely on implicit env parsing
-const appUrl = process.env.HOST || process.env.SHOPIFY_APP_URL || "";
-const derivedHostName = appUrl ? new URL(appUrl).host : undefined;
+function coerceUrl(value) {
+  if (!value) return null;
+  try {
+    // Allow values without protocol (e.g., myapp.up.railway.app)
+    const withProto = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    return new URL(withProto).href;
+  } catch {
+    return null;
+  }
+}
+
+const candidateUrls = [
+  process.env.HOST,
+  process.env.SHOPIFY_APP_URL,
+  process.env.APP_URL,
+  process.env.RAILWAY_STATIC_URL,
+  process.env.VERCEL_URL,
+  process.env.RENDER_EXTERNAL_URL,
+];
+
+let derivedHostName;
+for (const c of candidateUrls) {
+  const u = coerceUrl(c);
+  if (u) { derivedHostName = new URL(u).host; break; }
+}
 
 const shopify = shopifyApp({
   api: {

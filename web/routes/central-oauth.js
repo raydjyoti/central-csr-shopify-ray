@@ -62,8 +62,11 @@ centralOAuthRouter.get(
 centralOAuthRouter.get("/api/chatbots", async (req, res) => {
 
   try {
+
     const workspaceId = String(req.query?.workspace_id || "").trim();
     const shop = String(req.query?.shop || "").trim();
+
+    console.log(workspaceId, shop, "🥎");
 
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace_id" });
     if (!shop) return res.status(400).json({ error: "Missing shop" });

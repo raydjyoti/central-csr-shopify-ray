@@ -45,6 +45,7 @@ export default function Index() {
         const url = new URL("/api/chatbots", window.location.origin);
         url.searchParams.set("workspace_id", workspaceId);
         if (shopDomain) url.searchParams.set("shop", shopDomain);
+        
         const res = await fetch(url.toString(), { credentials: "include" });
         if (!res.ok) throw new Error("failed to fetch chatbots");
         const data = await res.json();

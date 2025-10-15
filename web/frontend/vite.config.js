@@ -47,6 +47,8 @@ if (host === "localhost") {
 export default defineConfig({
   root: dirname(fileURLToPath(import.meta.url)),
   plugins: [react()],
+  // Load Vite env vars from the parent web/ directory so a single Railway env works
+  envDir: dirname(fileURLToPath(import.meta.url)) + "/..",
   resolve: {
     preserveSymlinks: true,
   },

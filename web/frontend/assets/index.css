@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Force Tailwind font-size utilities to win over Polaris global element resets */
+#app .text-2xl { font-size: var(--text-2xl) !important; line-height: var(--tw-leading, var(--text-2xl--line-height)) !important; }
+#app .text-xl { font-size: var(--text-xl) !important; line-height: var(--tw-leading, var(--text-xl--line-height)) !important; }
+#app .text-lg { font-size: var(--text-lg) !important; line-height: var(--tw-leading, var(--text-lg--line-height)) !important; }
+#app .text-base { font-size: var(--text-base) !important; line-height: var(--tw-leading, var(--text-base--line-height)) !important; }
+
+/* Ensure Tailwind font-weight utilities win inside Admin iframe */
+#app .font-semibold { font-weight: var(--font-weight-semibold) !important; }
+#app .font-bold { font-weight: var(--font-weight-bold) !important; }
+#app .font-medium { font-weight: var(--font-weight-medium) !important; }
+#app .font-normal { font-weight: var(--font-weight-normal) !important; }
+#app .font-light { font-weight: var(--font-weight-light) !important; }
+
+/* Custom brand blue: update Tailwind color token so bg-blue-600/text-blue-600 use our value */
+:root { --color-blue-600: #289EFD; }
+
+

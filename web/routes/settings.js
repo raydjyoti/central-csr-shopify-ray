@@ -27,13 +27,11 @@ settingsRouter.get(
   async (_req, res) => {
     try {
       const shop = res.locals.shopify.session.shop;
-      console.log("📥 [GET /api/settings] shop:", shop);
       const { data, error } = await supabase
         .from("chats_shopify_settings")
         .select("*")
         .eq("shop_domain", shop)
         .maybeSingle();
-      console.log("📦 [GET /api/settings] row:", data, "err:", error || null);
       if (error) return res.status(500).json({ error: "DB error" });
 
       // Also fetch connection info from chats_shopify_shops (central_user_id is set after OAuth)

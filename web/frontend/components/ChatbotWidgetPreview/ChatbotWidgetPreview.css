@@ -1,0 +1,157 @@
+.markdown-content {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+  
+  .chat-bubble {
+    display: inline-block; /* shrink to content */
+    width: auto;
+    max-width: 80%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+  
+  .chat-bubble-user {
+    background-color: #3b82f6; /* brand blue-ish */
+    color: #fff;
+  }
+  
+  .chat-bubble-bot {
+    background-color: #f3f4f6; /* gray-100 */
+    color: #111827; /* gray-900 */
+  }
+  
+  .chat-timestamp {
+    font-size: 0.75rem;
+    color: #6b7280; /* gray-500 */
+    margin-top: 0.25rem;
+    padding-left: 0.25rem;
+  }
+  
+  .searching-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-style: italic;
+    color: #4b5563; /* gray-600 */
+  }
+  .markdown-content h1,
+  .markdown-content h2,
+  .markdown-content h3 {
+    font-weight: 600;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+  .markdown-content h1 {
+    font-size: 1.2em;
+  }
+  .markdown-content h2 {
+    font-size: 1.1em;
+  }
+  .markdown-content h3 {
+    font-size: 1em;
+  }
+  .markdown-content ul,
+  .markdown-content ol {
+    margin-left: 0.5em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    padding-left: 1.5em;
+  }
+  
+  .markdown-content ul {
+    list-style-type: disc;
+  }
+  
+  .markdown-content ol {
+    list-style-type: decimal;
+  }
+  
+  .markdown-content p {
+    margin-bottom: 0.5em;
+  }
+  .markdown-content p:last-child {
+    margin-bottom: 0;
+  }
+  .markdown-content strong {
+    font-weight: 700;
+  }
+  
+  .markdown-content b {
+    font-weight: 700;
+  }
+  
+  .markdown-content em,
+  .markdown-content i {
+    font-style: italic;
+  }
+  
+  .exit-chat-drawer {
+    bottom: -100%;
+    position: absolute;
+    left: 0;
+    right: 0;
+    background-color: white;
+    border-top: 1px solid #ddd;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    overflow-y: auto;
+    transition: bottom 0.3s ease-in-out;
+    padding: 0.5rem;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .exit-chat-drawer.open {
+    bottom: 0;
+  }
+  
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0);
+    z-index: 5;
+    pointer-events: none;
+    transition: background-color 0.3s ease-in-out;
+  }
+  
+  .overlay.show {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Nudge arrow jiggle every 15s */
+  .nudge-arrow {
+    /* Ensure transforms are relative to the SVG's drawing box */
+    transform-box: fill-box;
+    /* The base transform (rotate(20deg)) is set inline on the element.
+       The keyframes below will apply relative jitters around that base. */
+    transform-origin: 85% 85%;
+    animation: nudge-jiggle 10s ease-in-out infinite;
+  }
+  
+  @keyframes nudge-jiggle {
+    0%,
+    90% {
+      transform: translate(0, 0) rotate(20deg);
+    }
+    92% {
+      transform: translate(-1px, -1px) rotate(14deg);
+    }
+    94% {
+      transform: translate(2px, 0) rotate(26deg);
+    }
+    96% {
+      transform: translate(-1px, -0.5px) rotate(16deg);
+    }
+    98% {
+      transform: translate(1px, 0) rotate(24deg);
+    }
+    100% {
+      transform: translate(0, 0) rotate(20deg);
+    }
+  }
+  

@@ -16,6 +16,15 @@
     "extends": "@shopify/stylelint-polaris"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@headlessui/react": "^2.2.9",
+    "emoji-picker-react": "^4.14.0",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.545.0",
+    "react-image-crop": "^11.0.10",
+    "react-markdown": "^10.1.0",
+    "react-toastify": "^11.0.5",
     "@formatjs/intl-locale": "^3.3.2",
     "@formatjs/intl-localematcher": "^0.4.0",
     "@formatjs/intl-pluralrules": "^5.2.4",

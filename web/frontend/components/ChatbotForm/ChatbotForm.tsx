@@ -3708,12 +3708,12 @@ export const ChatbotForm = ({
       if (!accessToken) return;
 
       const response = await fetch(`/api/central/calendly/status`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
+          method: "GET",
+          headers: {
+            Accept: "application/json",
           "X-Workspace-Id": workspaceId,
           "X-Shop-Domain": shopDomain,
-        },
+          },
       });
 
       const data = await response.json();
@@ -3760,11 +3760,11 @@ export const ChatbotForm = ({
       if (!accessToken) return;
 
       const response = await fetch(`/api/booking/calcom/status`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
+          method: "GET",
+          headers: {
+            Accept: "application/json",
           "X-Workspace-Id": workspaceId,
-        },
+          },
       });
 
       const data = await response.json();
@@ -3796,12 +3796,12 @@ export const ChatbotForm = ({
       if (!accessToken) return;
 
       const response = await fetch(`/api/central/google-calendar/status`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
+          method: "GET",
+          headers: {
+            Accept: "application/json",
           "X-Workspace-Id": workspaceId || "",
           "X-Shop-Domain": shopDomain,
-        },
+          },
       });
 
       const data = await response.json();

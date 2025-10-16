@@ -9,4 +9,4 @@ WORKDIR /app
 COPY web .
 RUN npm install
 RUN cd frontend && npm install && npm run build
-CMD ["sh", "-c", "if [ \"$APP_MODE\" = \"development\" ]; then npm run dev; else npm run serve; fi"]
+CMD ["sh", "-c", "if [ \"$APP_MODE\" = \"development\" ]; then (cd frontend && npm run dev &) && npm run dev; else npm run serve; fi"]

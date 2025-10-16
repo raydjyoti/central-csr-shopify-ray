@@ -4,6 +4,7 @@ import ChatbotWidgetPreview from "../ChatbotWidgetPreview/ChatbotWidgetPreview";
 import axios from "axios";
 import { supabase } from "../../utils/supabaseClient";
 import { useAppBridge } from "@shopify/app-bridge-react";
+import { Spinner } from "@shopify/polaris";
 import { Redirect } from "@shopify/app-bridge/actions";
 import { useEffect, useRef } from "react";
 import {
@@ -2805,7 +2806,6 @@ export const ChatbotForm = ({
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [chatOnboarding, setChatOnboarding] = useState(false);
 
-
   const [exitAllowed, setExitAllowed] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<
     (() => void) | null
@@ -2980,6 +2980,8 @@ export const ChatbotForm = ({
   }, [workspaceId]);
 
   useEffect(() => {
+    if (!workspaceId) return;
+
     if (editChatbotId) {
       fetchChatbot(editChatbotId);
     } else {
@@ -3875,7 +3877,10 @@ export const ChatbotForm = ({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-[100vh]">
+      <div
+        className="flex justify-center items-center"
+        style={{ minHeight: "60vh" }}
+      >
         <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
       </div>
     );

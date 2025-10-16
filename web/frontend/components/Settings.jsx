@@ -1,6 +1,7 @@
 // web/frontend/pages/index.jsx
 import { useEffect, useState } from "react";
-import { Page, Layout, Card, TextField, Button, Banner, Stack, FormLayout, Select, Avatar, Text, Modal } from "@shopify/polaris";
+import { Page, Layout, Card, TextField, Button, Banner, Stack, FormLayout, Select, Avatar, Text, Modal, Badge, SkeletonDisplayText, SkeletonBodyText, Spinner } from "@shopify/polaris";
+import CentralLogo from "../assets/images/central-logo.svg"
 
 export default function Index() {
   const [workspaceId, setWorkspaceId] = useState("");
@@ -15,6 +16,8 @@ export default function Index() {
   const [changingAgent, setChangingAgent] = useState(false);
   const [showWorkspaceConfirm, setShowWorkspaceConfirm] = useState(false);
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState("");
+  const [loadingChatbots, setLoadingChatbots] = useState(false);
+  const [widgetEnabled, setWidgetEnabled] = useState(true);
 
 
   useEffect(() => {
@@ -27,6 +30,7 @@ export default function Index() {
         setConnectedToCentral(Boolean(data?.central_user_id || data?.workspace_id));
         setShopDomain(data?.shop_domain ?? "");
         setWorkspaces(Array.isArray(data?.workspaces) ? data.workspaces : []);
+        setWidgetEnabled(typeof data?.widget_enabled === 'boolean' ? data.widget_enabled : true);
       } catch {
         setStatus("Failed to load settings.");
       } finally {
@@ -42,6 +46,7 @@ export default function Index() {
         return;
       }
       try {
+        setLoadingChatbots(true);
         const url = new URL("/api/chatbots", window.location.origin);
         url.searchParams.set("workspace_id", workspaceId);
         if (shopDomain) url.searchParams.set("shop", shopDomain);
@@ -53,6 +58,8 @@ export default function Index() {
       } catch (e) {
         console.error("Failed to load chatbots:", e);
         setChatbots([]);
+      } finally {
+        setLoadingChatbots(false);
       }
     })();
   }, [workspaceId]);
@@ -87,6 +94,7 @@ export default function Index() {
         body: JSON.stringify({
           workspace_id: workspaceId || null,
           chat_agent_id: chatAgentId || null,
+          widget_enabled: widgetEnabled,
         }),
       });
       if (!res.ok) throw new Error("save failed");
@@ -128,11 +136,34 @@ export default function Index() {
     (window.top || window).location.href = url.toString();
   }
 
-  if (loading) return <Page title="Settings">Loading…</Page>;
+  if (loading) {
+    return (
+      <Page title="Chat Widget Settings">
+        <div style={{ padding: 24 }}>
+          <Layout>
+            <Layout.Section>
+              <Card sectioned>
+                <Stack alignment="center" distribution="equalSpacing">
+                  <Stack alignment="center" spacing="tight">
+                    <img src={CentralLogo} alt="Central" style={{ height: 28 }} />
+                    <SkeletonDisplayText size="small" />
+                  </Stack>
+                  <SkeletonDisplayText size="small" />
+                </Stack>
+                <div style={{ marginTop: 16 }}>
+                  <SkeletonBodyText lines={4} />
+                </div>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        </div>
+      </Page>
+    );
+  }
 
   return (
     <Page title="Chat Widget Settings">
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 24 }}>
       <Layout>
         <Layout.Section>
           <Card sectioned>
@@ -144,85 +175,104 @@ export default function Index() {
                 />
               )}
 
-              <Stack alignment="center" distribution="equalSpacing">
-                <div>{connectedToCentral ? "Connected to Central ✅" : "Not connected to Central"}</div>
-                {/* Polaris v11 style: use primary boolean prop */}
-                <Button primary onClick={handleConnectCentral}>
-                  {connectedToCentral ? "Re-connect Central" : "Connect Central"}
-                </Button>
-              </Stack>
+              <div style={{ marginBottom: 20 }}>
+                <Stack alignment="center" distribution="equalSpacing" spacing="loose">
+                  <Stack alignment="center" spacing="tight">
+                    <img src={CentralLogo} alt="Central" style={{ height: 28 }} />
+                    {connectedToCentral ? (
+                      <Badge status="success">Connected to Central</Badge>
+                    ) : (
+                      <Badge status="critical">Not Connected</Badge>
+                    )}
+                  </Stack>
+                  <Button primary onClick={handleConnectCentral}>
+                    {connectedToCentral ? "Re-connect Central" : "Connect Central"}
+                  </Button>
+                </Stack>
+              </div>
 
-              {connectedToCentral ? (
-                <>
-                  <Select
-                    label="Workspace"
-                    options={workspaces.map((w) => ({ label: w.name, value: w.id }))}
-                    value={workspaceId}
-                    onChange={handleWorkspaceSelectChange}
-                    placeholder="Select a workspace"
-                  />
-                  <Modal
-                    open={showWorkspaceConfirm}
-                    onClose={cancelWorkspaceChange}
-                    title="Change workspace?"
-                    primaryAction={{ content: "Change Workspace", destructive: true, onAction: confirmWorkspaceChange }}
-                    secondaryActions={[{ content: "Cancel", onAction: cancelWorkspaceChange }]}
-                  >
-                    <div style={{ padding: 16 }}>
-                      <Text as="p">
-                        Changing workspace will remove the currently selected chat agent. You can select a chat agent from the new workspace afterward.
-                      </Text>
-                    </div>
-                  </Modal>
-                </>
-              ) : (
-                <TextField
-                  label="Workspace ID"
-                  value={workspaceId}
-                  onChange={setWorkspaceId}
-                  placeholder="UUID from Central"
-                  autoComplete="off"
-                />
-              )}
-
-              {chatbots.length > 0 ? (
-                <>
-                  {(!changingAgent && chatAgentId) ? (
-                    <Stack alignment="center" distribution="equalSpacing">
-                      <div>
-                        <Text as="p" variant="bodyMd">Current Chat Agent</Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          {(() => {
-                            const current = chatbots.find((b) => b?._id === chatAgentId);
-                            return current?.persona?.name || current?.name || chatAgentId || "Unnamed";
-                          })()}
+              <div style={{ marginTop: 20, marginBottom: 20 }}>
+                {connectedToCentral ? (
+                  <>
+                    <Select
+                      label="Workspace"
+                      options={workspaces.map((w) => ({ label: w.name, value: w.id }))}
+                      value={workspaceId}
+                      onChange={handleWorkspaceSelectChange}
+                      placeholder="Select a workspace"
+                    />
+                    <Modal
+                      open={showWorkspaceConfirm}
+                      onClose={cancelWorkspaceChange}
+                      title="Change workspace?"
+                      primaryAction={{ content: "Change Workspace", destructive: true, onAction: confirmWorkspaceChange }}
+                      secondaryActions={[{ content: "Cancel", onAction: cancelWorkspaceChange }]}
+                    >
+                      <div style={{ padding: 16 }}>
+                        <Text as="p">
+                          Changing workspace will remove the currently selected chat agent. You can select a chat agent from the new workspace afterward.
                         </Text>
                       </div>
-                      <Button onClick={() => setChangingAgent(true)}>Change Chat Agent</Button>
-                    </Stack>
-                  ) : (
-                    <Select
-                      label="Chat Agents"
-                      options={chatbots.map((b) => ({ label: b?.persona?.name || b?.name || b?._id || "Unnamed", value: b?._id }))}
-                      value={chatAgentId}
-                      onChange={(val) => {
-                        setChatAgentId(val);
-                        setChangingAgent(false);
-                      }}
-                      placeholder="Select a chat agent"
-                    />
-                  )}
-                </>
-              ) : (
-                <Select
-                  label="Chat Agents"
-                  options={[]}
-                  value={""}
-                  onChange={() => {}}
-                  placeholder="No chat agents available"
-                  disabled
-                />
-              )}
+                    </Modal>
+                  </>
+                ) : (
+                  <TextField
+                    label="Workspace ID"
+                    value={workspaceId}
+                    onChange={setWorkspaceId}
+                    placeholder="UUID from Central"
+                    autoComplete="off"
+                  />
+                )}
+              </div>
+
+              <div style={{ marginTop: 20, marginBottom: 20 }}>
+                {loadingChatbots ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Spinner size="small" />
+                    <Text as="span" tone="subdued">Loading chat agents…</Text>
+                  </div>
+                ) : chatbots.length > 0 ? (
+                  <>
+                    {(!changingAgent && chatAgentId) ? (
+                      <Stack alignment="center" distribution="equalSpacing" spacing="loose">
+                        <div>
+                          <Text as="p" variant="bodyMd">Current Chat Agent</Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {(() => {
+                              const current = chatbots.find((b) => b?._id === chatAgentId);
+                              return current?.persona?.name || current?.name || chatAgentId || "Unnamed";
+                            })()}
+                          </Text>
+                        </div>
+                        <Button onClick={() => setChangingAgent(true)}>Change Chat Agent</Button>
+                      </Stack>
+                    ) : (
+                      <Select
+                        label="Chat Agents"
+                        options={chatbots.map((b) => ({ label: b?.persona?.name || b?.name || b?._id || "Unnamed", value: b?._id }))}
+                        value={chatAgentId}
+                        onChange={(val) => {
+                          setChatAgentId(val);
+                          setChangingAgent(false);
+                        }}
+                        placeholder="Select a chat agent"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <Select
+                    label="Chat Agents"
+                    options={[]}
+                    value={""}
+                    onChange={() => {}}
+                    placeholder="No chat agents available"
+                    disabled
+                  />
+                )}
+              </div>
+
+       
 
               {/* Selected chatbot preview */}
               {chatAgentId && chatbots?.length > 0 && (() => {
@@ -233,7 +283,7 @@ export default function Index() {
                 const subtitle = selected?.greetingMessage?.shortMessage || "";
                 const accent = selected?.brandColor || "#289EFD";
                 return (
-                  <div style={{ border: `1px solid ${accent}`, borderLeftWidth: 4, borderRadius: 8, padding: 12, background: "#fff" }}>
+                  <div style={{ border: `1px solid ${accent}`, borderLeftWidth: 4, borderRadius: 8, padding: 12, background: "#fff", marginTop: 16, marginBottom: 16 }}>
                     <Stack alignment="center" spacing="tight">
                       <Avatar name={displayName} source={avatarSrc} size="medium" />
                       <div style={{ marginLeft: 8 }}>
@@ -246,6 +296,49 @@ export default function Index() {
                   </div>
                 );
               })()}
+
+                     {/* Toggle: Enable/Disable Chat Agent on storefront */}
+                      <Stack alignment="center" distribution="equalSpacing" style={{ marginTop: 16, marginBottom: 12 }}>
+                <div>
+                  <Text as="p" variant="bodyMd">Widget visibility</Text>
+                  <Text as="p" tone="subdued" variant="bodySm">Controls whether the chat widget is active on your storefront</Text>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const next = !widgetEnabled;
+                    setWidgetEnabled(next);
+                    setSaving(true);
+                    try {
+                      await fetch("/api/settings", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                          workspace_id: workspaceId || null,
+                          chat_agent_id: chatAgentId || null,
+                          widget_enabled: next,
+                        }),
+                      });
+                      setStatus(`Widget ${next ? 'enabled' : 'disabled'}.`);
+                    } catch {
+                      setStatus("Failed to update widget state.");
+                      setWidgetEnabled(!next);
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  className={`${widgetEnabled ? 'bg-blue-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
+                  role="switch"
+                  aria-checked={widgetEnabled}
+                >
+                  <span className="sr-only">Toggle widget visibility</span>
+                  <span
+                    aria-hidden="true"
+                    className={`${widgetEnabled ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                  />
+                </button>
+              </Stack>
 
               <Stack distribution="trailing">
                 <Button primary loading={saving} onClick={handleSave}>

@@ -95,7 +95,7 @@ settingsRouter.post(
   async (req, res) => {
     try {
       const shop = res.locals.shopify.session.shop;
-      const { chat_agent_id, workspace_id } = req.body || {};
+      const { chat_agent_id, workspace_id, widget_enabled } = req.body || {};
 
 
       // Read → update or insert to ensure a row is always returned
@@ -113,6 +113,11 @@ settingsRouter.post(
         workspace_id: workspace_id ?? null,
         updated_at: new Date().toISOString(),
       };
+
+      // Only include widget_enabled if provided (so we don't overwrite unintentionally)
+      if (typeof widget_enabled !== "undefined") {
+        payload.widget_enabled = !!widget_enabled;
+      }
 
       let saved = null;
       if (existing) {
@@ -160,12 +165,10 @@ settingsRouter.post(
         for (const tag of staleTags) {
           try { await rest.delete({ path: `script_tags/${tag.id}` }); } catch (e) { /* ignore */ }
         }
-
-
-
-        // Only create a new tag if we have a selected chat agent
-        if (saved?.chat_agent_id || chat_agent_id) {
-          const agentId = saved?.chat_agent_id || chat_agent_id;
+      // Only create a new tag if we have a selected chat agent and widget is enabled
+      const enabledState = typeof widget_enabled !== "undefined" ? !!widget_enabled : !!saved?.widget_enabled;
+      if ((saved?.chat_agent_id || chat_agent_id) && enabledState) {
+        const agentId = saved?.chat_agent_id || chat_agent_id;
           const widgetBase = (process.env.CENTRAL_CSR_WIDGET || '').replace(/\/$/, '');
 
           // 1) Config setter script (served from backend URL env)

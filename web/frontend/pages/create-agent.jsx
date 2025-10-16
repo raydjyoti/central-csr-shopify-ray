@@ -1,17 +1,21 @@
 import { Page, Layout } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import {ChatbotForm} from "../components/ChatbotForm/ChatbotForm";
+import { useSearchParams } from "react-router-dom";
+import { ChatbotForm } from "../components/ChatbotForm/ChatbotForm";
 
 export default function CreateAgentPage() {
+  const [searchParams] = useSearchParams();
+  const editChatbotId = searchParams.get("chatbotId");
+
   return (
-    <Page>
+    <div>
       <TitleBar title="Create Chat Agent" />
       <Layout>
         <Layout.Section>
-          <ChatbotForm />
+          <ChatbotForm editChatbotId={editChatbotId} setActiveView={() => {}} onClose={() => {}} />
         </Layout.Section>
       </Layout>
-    </Page>
+    </div>
   );
 }
 

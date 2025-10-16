@@ -40,8 +40,6 @@ app.get(
       const session = res.locals.shopify.session;
       const { shop, accessToken, scope } = session;
 
-      console.log("✅ [/api/auth/callback] session shop:", shop, "scope:", scope ? scope.split(",").length : 0);
-
       // Save install (update-then-insert to avoid requiring a unique constraint)
       const nowIso = new Date().toISOString();
       const updateResult = await supabase
@@ -78,7 +76,7 @@ app.get(
       }
 
       // Register webhooks for this shop
-      console.log("🔔 [webhooks] registering…");
+
       await shopify.api.webhooks.addHandlers({
         APP_UNINSTALLED: {
           deliveryMethod: DeliveryMethod.Http,
@@ -99,7 +97,7 @@ app.get(
       });
 
       // continue to the built-in redirect middleware
-      console.log("🏁 [/api/auth/callback] redirecting to app root…");
+
       next();
       return;
     } catch (err) {
@@ -125,7 +123,7 @@ app.post(
           try {
             await supabase.from("chats_shopify_shops").delete().eq("shop_domain", shop);
             // await supabase.from("chats_shopify_settings").delete().eq("shop_domain", shop);
-            console.log(`Cleaned up data for ${shop} on uninstall`);
+
           } catch (e) {
             console.error("APP_UNINSTALLED cleanup error:", e);
           }

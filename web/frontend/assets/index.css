@@ -16,4 +16,26 @@
 /* Custom brand blue: update Tailwind color token so bg-blue-600/text-blue-600 use our value */
 :root { --color-blue-600: #289EFD; }
 
+/* Make Tailwind rounded-* utilities more curved in the Shopify app */
+#app {
+  --radius-sm: 0.375rem;   /* 6px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-2xl: 1.5rem;    /* 24px */
+  --radius-3xl: 2rem;      /* 32px */
+  /* Set default Tailwind border color used by `border` utility */
+  --color-border: #e5e7eb; /* gray-200 */
+}
+
+/* Ensure default Tailwind border utilities use our desired color */
+#app .border,
+#app .border-t,
+#app .border-b,
+#app .border-l,
+#app .border-r,
+#app .border-x,
+#app .border-y {
+  border-color: #e5e7eb !important;
+}
 

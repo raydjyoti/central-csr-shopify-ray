@@ -286,8 +286,7 @@
     display: flex;
     justify-content: space-between;
     margin-top: auto;
-    width: 95%;
-    margin: 3rem 0;
+    width: 100%;
   }
   
   @media (max-width: 768px) {
@@ -581,7 +580,7 @@
     bottom: 0;
     background-color: white;
     z-index: 30;
-    padding: 1rem 0;
+    padding: 1rem 1.5rem;
   }
   
   @media (max-width: 767px) {

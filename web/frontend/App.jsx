@@ -19,6 +19,7 @@ export default function App() {
         <QueryProvider>
           <NavMenu>
             <a href="/" rel="home" />
+            <a href="/chat-agents">Chat Agents</a>
             <a href="/create-agent">Create Chat Agent</a>
           </NavMenu>
           <Routes pages={pages} />

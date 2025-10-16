@@ -449,7 +449,7 @@ We offer a wide range of services, let me know if you need help with anything!`,
       className={`overflow-hidden shadow-xl bg-white flex flex-col ${
         isMobile
           ? "fixed inset-0 z-50 w-screen"
-          : "max-h-[90vh] h-[700px] w-[450px] rounded-lg relative"
+          : "max-h-[90vh] h-[700px] w-[450px] rounded-2xl relative"
       }`}
       style={isMobile ? { height: "100dvh" } : {}}
     >

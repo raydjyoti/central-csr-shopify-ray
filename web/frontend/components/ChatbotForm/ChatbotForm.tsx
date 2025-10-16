@@ -2805,7 +2805,7 @@ export const ChatbotForm = ({
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [chatOnboarding, setChatOnboarding] = useState(false);
 
-  const [showExitNudgeModal, setShowExitNudgeModal] = useState(false);
+
   const [exitAllowed, setExitAllowed] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<
     (() => void) | null
@@ -2999,114 +2999,6 @@ export const ChatbotForm = ({
   }, []);
 
   useEffect(() => {
-    const shouldShowNudge = !editChatbotId;
-
-    if (!shouldShowNudge) {
-      setExitAllowed(false);
-      setPendingNavigation(null);
-      return;
-    }
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isSubmitting || exitAllowed) return;
-      e.preventDefault();
-      setShowExitNudgeModal(true);
-      return (e.returnValue = "");
-    };
-
-    const handlePopState = (e: PopStateEvent) => {
-      if (isSubmitting || exitAllowed) return;
-      e.preventDefault();
-      setShowExitNudgeModal(true);
-      window.history.pushState(null, "", window.location.href);
-    };
-
-    const handleClick = (e: MouseEvent) => {
-      if (exitAllowed || isSubmitting) return;
-
-      const target = e.target as HTMLElement;
-      const link = target.closest("a");
-      const button = target.closest("button");
-
-      // Don't intercept clicks on the modal itself
-      if (target.closest('[role="dialog"]')) {
-        return;
-      }
-
-      // Don't show nudge for form-internal actions
-      if (target.closest(`.${styles.createChatbotContainer}`)) {
-        if (button) {
-          const buttonText = button.textContent?.toLowerCase() || "";
-
-          // Special case: "Back" button on step 1 navigates away, so show modal
-          if (buttonText.includes("back") && currentStep === 1) {
-            e.preventDefault();
-            e.stopPropagation();
-            setPendingNavigation(() => () => setActiveView("manage-chatbots"));
-            setShowExitNudgeModal(true);
-            return;
-          }
-
-          if (
-            buttonText.includes("back") ||
-            buttonText.includes("next") ||
-            buttonText.includes("update") ||
-            buttonText.includes("create")
-          ) {
-            return;
-          }
-        }
-        const link = target.closest("a");
-        if (link) {
-          const linkText = link.textContent?.toLowerCase() || "";
-          if (
-            linkText.includes("connect cal.com") ||
-            linkText.includes("connect calendly")
-          ) {
-            return;
-          }
-        }
-        // Allow clicks within the form container that are not navigation
-        return;
-      }
-
-      // Intercept any click outside the form container (sidebar, notifications, etc.)
-      if (link) {
-        const href = link.getAttribute("href");
-        if (href && !href.startsWith("#")) {
-          e.preventDefault();
-          e.stopPropagation();
-          setPendingNavigation(() => () => {
-            if (href.startsWith("/")) {
-              navigate(href);
-            } else {
-              window.open(href, "_blank");
-            }
-          });
-          setShowExitNudgeModal(true);
-        }
-      } else if (button) {
-        // Intercept any button click outside the form (navigation buttons, etc.)
-        e.preventDefault();
-        e.stopPropagation();
-        setPendingNavigation(() => () => button.click());
-        setShowExitNudgeModal(true);
-      }
-    };
-
-    window.history.pushState(null, "", window.location.href);
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
-    document.addEventListener("click", handleClick, true);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
-      document.removeEventListener("click", handleClick, true);
-    };
-  }, [currentStep, navigate, isSubmitting, exitAllowed, editChatbotId]);
-
-  useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreviewModalOpen(true);
     }, 30000);
@@ -3126,21 +3018,15 @@ export const ChatbotForm = ({
     setIsLoading(true);
 
     try {
-      const accessToken = await getCentralAccessTokenOrRedirect();
-      if (!accessToken) return;
-
       const response = await axios.get(
-        `${API_URL}/api/chatbot/oAuth/${chatbotId}`,
-        {
-          headers: {
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            "x-workspace-id": workspaceId,
-          },
-        }
+        `/api/central/chatbot/${chatbotId}?workspace_id=${workspaceId}&shop=${shopDomain}`,
+        {}
       );
 
       if (response.status === 200) {
         const data = response.data;
+
+        console.log(data, "✅✅✅");
 
         const fetchedBackendActions = data.quickActions || [];
 
@@ -3173,162 +3059,7 @@ export const ChatbotForm = ({
                   ...restOfConfig,
                 };
               }
-              if (backendAction.downloadFileConfig) {
-                const initialDlConfig = initialAction.downloadFileConfig!;
-                const backendDlConfig = backendAction.downloadFileConfig;
 
-                const mergedCollectInfo = !!backendDlConfig.intakeFormId;
-
-                let fieldsForAction: IntakeField[] =
-                  initialDlConfig.intakeFields || [];
-                let formIdToStore: string | null = null;
-                let intakeForm = null;
-                if (mergedCollectInfo) {
-                  if (backendDlConfig.intakeFormId) {
-                    intakeForm = await fetchIntakeForm(
-                      backendDlConfig.intakeFormId
-                    );
-
-                    if (intakeForm && intakeForm.intake_form_fields) {
-                      fieldsForAction = intakeForm.intake_form_fields.map(
-                        (field: any) => ({
-                          id: field.id,
-                          label: field.label,
-                          type: field.type,
-                          required: field.required,
-                          // display_order is not part of IntakeField, so omit it
-                        })
-                      );
-                      formIdToStore = backendDlConfig.intakeFormId;
-                    } else {
-                      // Fetch failed or no fields, use default initial fields
-                      fieldsForAction = initialDlConfig.intakeFields || [
-                        {
-                          id: `dl-temp-name-${Date.now()}`,
-                          label: "Name",
-                          type: "text",
-                          required: true,
-                        },
-                        {
-                          id: `dl-temp-email-${Date.now() + 1}`,
-                          label: "Email",
-                          type: "email",
-                          required: true,
-                        },
-                      ];
-                    }
-                  } else {
-                    // No intakeFormId from backend, use default initial fields
-                    fieldsForAction = initialDlConfig.intakeFields || [
-                      {
-                        id: `dl-temp-name-${Date.now()}`,
-                        label: "Name",
-                        type: "text",
-                        required: true,
-                      },
-                      {
-                        id: `dl-temp-email-${Date.now() + 1}`,
-                        label: "Email",
-                        type: "email",
-                        required: true,
-                      },
-                    ];
-                  }
-                } else {
-                  fieldsForAction = []; // CollectInfo is false
-                }
-
-                fullAction.downloadFileConfig = {
-                  ...initialDlConfig, // Spread initial to retain _selectedFile, _fileFieldNameForUpload defaults
-                  name: intakeForm?.intake_form.name || initialDlConfig.name,
-                  buttonText:
-                    backendDlConfig.buttonText || initialDlConfig.buttonText,
-                  fileLink:
-                    backendDlConfig.fileLink || initialDlConfig.fileLink,
-                  fileName:
-                    backendDlConfig.fileName || initialDlConfig.fileName,
-                  fileType: backendDlConfig.fileName
-                    ? backendDlConfig.fileName.split(".").pop()
-                    : initialDlConfig.fileType,
-                  collectInfo: backendDlConfig.collectInfo,
-                  intakeFormId: mergedCollectInfo ? formIdToStore : null,
-                  intakeFields: fieldsForAction,
-                };
-              }
-              if (backendAction.requestCallbackConfig) {
-                const initialCbConfig = initialAction.requestCallbackConfig!;
-                const backendCbConfig = backendAction.requestCallbackConfig;
-
-                const mergedCollectInfo =
-                  backendCbConfig.collectInfo !== undefined
-                    ? backendCbConfig.collectInfo
-                    : initialCbConfig.collectInfo;
-
-                let fieldsForAction: IntakeField[] =
-                  initialCbConfig.intakeFields || [];
-                let formIdToStore: string | null = null;
-
-                if (mergedCollectInfo) {
-                  if (backendCbConfig.intakeFormId) {
-                    const intakeForm = await fetchIntakeForm(
-                      backendCbConfig.intakeFormId
-                    );
-                    if (intakeForm && intakeForm.intake_form_fields) {
-                      fieldsForAction = intakeForm.intake_form_fields.map(
-                        (field: any) => ({
-                          id: field.id,
-                          label: field.label,
-                          type: field.type,
-                          required: field.required,
-                        })
-                      );
-                      formIdToStore = backendCbConfig.intakeFormId;
-                    } else {
-                      fieldsForAction = initialCbConfig.intakeFields || [
-                        {
-                          id: `cb-temp-name-${Date.now()}`,
-                          label: "Name",
-                          type: "text",
-                          required: true,
-                        },
-                        {
-                          id: `cb-temp-phone-${Date.now() + 1}`,
-                          label: "Mobile Number",
-                          type: "phone",
-                          required: true,
-                        },
-                      ];
-                    }
-                  } else {
-                    fieldsForAction = initialCbConfig.intakeFields || [
-                      {
-                        id: `cb-temp-name-${Date.now()}`,
-                        label: "Name",
-                        type: "text",
-                        required: true,
-                      },
-                      {
-                        id: `cb-temp-phone-${Date.now() + 1}`,
-                        label: "Mobile Number",
-                        type: "phone",
-                        required: true,
-                      },
-                    ];
-                  }
-                } else {
-                  fieldsForAction = []; // CollectInfo is false
-                }
-
-                fullAction.requestCallbackConfig = {
-                  ...initialCbConfig,
-                  name: backendCbConfig.name,
-                  buttonText:
-                    backendCbConfig.buttonText || initialCbConfig.buttonText,
-                  collectInfo: mergedCollectInfo,
-                  intakeFormId: mergedCollectInfo ? formIdToStore : null,
-                  intakeFields: fieldsForAction,
-                };
-              }
               if (backendAction.linkToURLConfig) {
                 fullAction.linkToURLConfig = {
                   ...initialAction.linkToURLConfig,
@@ -3959,58 +3690,15 @@ export const ChatbotForm = ({
       // return
 
       const url = editChatbotId
-        ? `${API_URL}/api/chatbot/update/${editChatbotId}`
-        : `${API_URL}/api/chatbot/create`;
+        ? `/api/central/chatbot/update/${editChatbotId}`
+        : `/api/central/chatbot/create`;
       const method = editChatbotId ? "put" : "post";
 
-      // Lookup Central user_id linked to this shop
-      const { data: linked, error: linkErr } = await supabase
-        .from("chats_shopify_shops")
-        .select("central_user_id")
-        .eq("shop_domain", shopDomain)
-        .maybeSingle();
-
-      const nowIso = new Date().toISOString();
-      const { data: tokensRows, error: tokErr } = await supabase
-        .from("oauth_tokens")
-        .select(
-          "access_token, refresh_token, access_token_expires_at, refresh_token_expires_at"
-        )
-        .eq("user_id", linked?.central_user_id)
-        .eq("client_id", import.meta.env.VITE_SHOPIFY_OAUTH_CLIENT_ID)
-        .order("access_token_expires_at", { ascending: false })
-        .limit(1);
-
-      console.log(
-        linked?.central_user_id,
-        import.meta.env.VITE_SHOPIFY_OAUTH_CLIENT_ID,
-        "🔥"
-      );
-
-      if (tokErr) return toast.error("Failed to read tokens");
-      const tok = tokensRows && tokensRows[0];
-      if (!tok) return toast.error("No Central token found");
-
-      const accessToken: string | null = tok?.access_token || null;
-      if (
-        !accessToken ||
-        !(tok.access_token_expires_at && tok.access_token_expires_at > nowIso)
-      ) {
-        (window.top || window).location.href = "/";
-        return;
-      }
-
-      console.log("🔑 [chatbots] accessToken:", accessToken);
-
-      const oauthUrl = editChatbotId
-        ? `${API_URL}/api/chatbot/oAuth/update/${editChatbotId}`
-        : `${API_URL}/api/chatbot/oAuth/create`;
-
-      await axios[method](oauthUrl, formDataToSend, {
+      await axios[method](url, formDataToSend, {
         headers: {
           "Content-Type": "multipart/form-data",
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           "x-workspace-id": workspaceId,
+          "x-shop-domain": shopDomain,
         },
       });
 
@@ -4045,19 +3733,14 @@ export const ChatbotForm = ({
       const accessToken = await getCentralAccessTokenOrRedirect();
       if (!accessToken) return;
 
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_CENTRAL_BACKEND_API_URL
-        }/calendly/status-unified`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            "X-Workspace-Id": workspaceId,
-          },
-        }
-      );
+      const response = await fetch(`/api/central/calendly/status`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "X-Workspace-Id": workspaceId,
+          "X-Shop-Domain": shopDomain,
+        },
+      });
 
       const data = await response.json();
 
@@ -4102,17 +3785,13 @@ export const ChatbotForm = ({
       const accessToken = await getCentralAccessTokenOrRedirect();
       if (!accessToken) return;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_CSR_BACKEND_URL}/api/booking/calcom/status`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            "X-Workspace-Id": workspaceId,
-          },
-        }
-      );
+      const response = await fetch(`/api/booking/calcom/status`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "X-Workspace-Id": workspaceId,
+        },
+      });
 
       const data = await response.json();
 
@@ -4142,19 +3821,14 @@ export const ChatbotForm = ({
       const accessToken = await getCentralAccessTokenOrRedirect();
       if (!accessToken) return;
 
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_CENTRAL_BACKEND_API_URL
-        }/google-calendar/google-calendar-status`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            "X-Workspace-Id": workspaceId || "",
-          },
-        }
-      );
+      const response = await fetch(`/api/central/google-calendar/status`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "X-Workspace-Id": workspaceId || "",
+          "X-Shop-Domain": shopDomain,
+        },
+      });
 
       const data = await response.json();
 
@@ -4279,22 +3953,6 @@ export const ChatbotForm = ({
             : "100vh",
       }}
     >
-      <ExitNudgeModal
-        isOpen={showExitNudgeModal}
-        formData={formData}
-        onStay={() => {
-          setShowExitNudgeModal(false);
-          setPendingNavigation(null);
-        }}
-        onLeave={() => {
-          setExitAllowed(true);
-          if (pendingNavigation) {
-            pendingNavigation();
-          }
-          setShowExitNudgeModal(false);
-          setPendingNavigation(null);
-        }}
-      />
       <SuccessPopup
         isOpen={isSuccessPopupOpen}
         chatOnboarding={chatOnboarding}

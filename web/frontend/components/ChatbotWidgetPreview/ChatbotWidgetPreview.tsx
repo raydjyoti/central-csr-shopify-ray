@@ -210,7 +210,7 @@ We offer a wide range of services, let me know if you need help with anything!`,
     let socket: Socket;
     const mode = import.meta.env.VITE_SOCKET_MODE;
     if (mode !== "development") {
-      socket = io(import.meta.env.VITE_CSR_BACKEND_URL, {
+      socket = io("https://central-csr-backend-ray-production.up.railway.app", {
         path: "/socket-server",
       });
     } else {
@@ -405,9 +405,9 @@ We offer a wide range of services, let me know if you need help with anything!`,
       agentInstructions: instructions,
       socketId: socketRef.current?.id || undefined,
       websiteScanContext: {
-        websiteUrl: onboardingData?.websiteUrl || null,
-        websiteScanJobId: onboardingData?.websiteScanJobId || null,
-        websiteScanResult: onboardingData?.websiteScanResult || null,
+        websiteUrl: null,
+        websiteScanJobId: null,
+        websiteScanResult: null,
       },
       knowledgeBase,
       chat: newChat,

@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import styles from "./ChatbotForm.module.css";
 import ChatbotWidgetPreview from "../ChatbotWidgetPreview/ChatbotWidgetPreview";
 import axios from "axios";
-import { supabase } from "../../utils/supabaseClient";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { Spinner } from "@shopify/polaris";
 import { Redirect } from "@shopify/app-bridge/actions";
@@ -2815,42 +2814,10 @@ export const ChatbotForm = ({
   // Helper: get Central access token; if expired/missing, redirect to "/" to relogin
   const getCentralAccessTokenOrRedirect = async (): Promise<string | null> => {
     try {
-      if (!supabase) {
-        appRedirect.dispatch(Redirect.Action.APP, "/");
-        return null;
-      }
-      const { data: linked } = await supabase
-        .from("chats_shopify_shops")
-        .select("central_user_id")
-        .eq("shop_domain", shopDomain)
-        .maybeSingle();
-      const centralUserId = linked?.central_user_id || null;
-      if (!centralUserId) {
-        appRedirect.dispatch(Redirect.Action.APP, "/");
-        return null;
-      }
-      const nowIso = new Date().toISOString();
-      const { data: tokensRows } = await supabase
-        .from("oauth_tokens")
-        .select(
-          "access_token, refresh_token, access_token_expires_at, refresh_token_expires_at"
-        )
-        .eq("user_id", centralUserId)
-        .eq("client_id", import.meta.env.VITE_SHOPIFY_OAUTH_CLIENT_ID)
-        .order("access_token_expires_at", { ascending: false })
-        .limit(1);
-      const tok: any = tokensRows && tokensRows[0];
-      if (!tok) {
-        appRedirect.dispatch(Redirect.Action.APP, "/");
-        return null;
-      }
-      const isAccessValid =
-        tok.access_token_expires_at && tok.access_token_expires_at > nowIso;
-      if (!isAccessValid) {
-        appRedirect.dispatch(Redirect.Action.APP, "/");
-        return null;
-      }
-      return tok.access_token as string;
+      // We no longer fetch tokens directly from Supabase on the client.
+      // The backend proxies handle token presence/refresh; just ensure session is valid.
+      // If settings call failed earlier, appRedirect would handle it.
+      return "ok"; // placeholder non-null to proceed with proxy calls
     } catch {
       appRedirect.dispatch(Redirect.Action.APP, "/");
       return null;

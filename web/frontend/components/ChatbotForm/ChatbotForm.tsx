@@ -2750,7 +2750,8 @@ export const ChatbotForm = ({
 }) => {
   const navigate = useNavigate();
   const app = useAppBridge();
-  const appRedirect = Redirect.create(app);
+  // Type guard: Redirect expects a ClientApplication; cast to any to satisfy types in this mixed env
+  const appRedirect = Redirect.create(app as any);
   const [workspaceId, setWorkspaceId] = useState<string>("");
   const [shopDomain, setShopDomain] = useState<string>("");
 
@@ -2814,6 +2815,10 @@ export const ChatbotForm = ({
   // Helper: get Central access token; if expired/missing, redirect to "/" to relogin
   const getCentralAccessTokenOrRedirect = async (): Promise<string | null> => {
     try {
+      if (!supabase) {
+        appRedirect.dispatch(Redirect.Action.APP, "/");
+        return null;
+      }
       const { data: linked } = await supabase
         .from("chats_shopify_shops")
         .select("central_user_id")

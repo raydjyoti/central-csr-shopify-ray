@@ -208,11 +208,11 @@ We offer a wide range of services, let me know if you need help with anything!`,
 
   useEffect(() => {
     let socket: Socket;
-    const isDev = Boolean(import.meta.env.DEV);
-    const devUrl =
-      (import.meta.env.VITE_CSR_BACKEND_URL as string | undefined) || "";
-    if (isDev && devUrl) {
-      socket = io(devUrl, { path: "/socket-server" });
+    const mode = import.meta.env.VITE_SOCKET_MODE;
+    if (mode !== "development") {
+      socket = io(import.meta.env.VITE_CSR_BACKEND_URL, {
+        path: "/socket-server",
+      });
     } else {
       socket = io("https://api.trycentral.com", {
         path: "/chats/socket-server",

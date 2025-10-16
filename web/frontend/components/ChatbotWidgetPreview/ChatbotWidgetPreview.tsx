@@ -417,11 +417,14 @@ We offer a wide range of services, let me know if you need help with anything!`,
       ? "/api/workspace-chat/send-message"
       : "/api/workspace-chat/send-message-preview";
 
-    fetch(`${import.meta.env.VITE_CSR_BACKEND_URL}${urlEndpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
+    fetch(
+      `https://central-csr-backend-ray-production.up.railway.app${urlEndpoint}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    )
       .then((r) => r.json())
       .then((resp) => {
         const chatId = resp?.data?.chatId;

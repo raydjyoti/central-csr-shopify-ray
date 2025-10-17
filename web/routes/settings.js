@@ -13,7 +13,43 @@ settingsRouter.get("/api/widget-config.js", (req, res) => {
     const chatAgentId = String(req.query?.chatAgentId || "").trim();
     res.setHeader("Content-Type", "application/javascript; charset=utf-8");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    const js = `window.ChatWidgetConfig = { chatAgentId: ${JSON.stringify(chatAgentId)}, siteUrl: window.location.href };`;
+    const allowedOrigins = (process.env.SHOPIFY_WIDGET_ALLOWED_ORIGINS || "onrender.com,trycentral.com")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const js = `
+      // Central widget runtime config
+      window.ChatWidgetConfig = { chatAgentId: ${JSON.stringify(chatAgentId)}, siteUrl: window.location.href };
+      // Bridge: handle add-to-cart from cross-origin widget via postMessage
+      (function(){
+        var ALLOWED = ${JSON.stringify(allowedOrigins)};
+        function isAllowed(origin){
+          try { var h = new URL(origin).hostname; return ALLOWED.some(function(s){ return h === s || h.endsWith('.' + s); }); } catch (e) { return false; }
+        }
+        window.addEventListener('message', function(e){
+          if (!isAllowed(e.origin)) return;
+          var msg = e.data || {};
+          if (msg && msg.type === 'CENTRAL_ADD_TO_CART' && msg.id) {
+            fetch('/cart/add.js', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ id: String(msg.id), quantity: msg.quantity || 1 })
+            }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, json: j }; }); })
+              .then(function(res){
+                if (e.source && e.origin) {
+                  e.source.postMessage({ type: 'CENTRAL_ADD_TO_CART_OK', id: msg.id, data: res.json }, e.origin);
+                }
+                try { window.dispatchEvent(new CustomEvent('central:cart:added', { detail: { variantId: msg.id, quantity: msg.quantity || 1 } })); } catch(_){ }
+              })
+              .catch(function(err){
+                if (e.source && e.origin) {
+                  e.source.postMessage({ type: 'CENTRAL_ADD_TO_CART_ERR', id: msg.id, error: String(err && err.message || err) }, e.origin);
+                }
+              });
+          }
+        });
+      })();
+    `;
     res.status(200).send(js);
   } catch (e) {
     res.status(200).send("// widget config error");

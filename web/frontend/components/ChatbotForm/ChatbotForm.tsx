@@ -2833,7 +2833,7 @@ export const ChatbotForm = ({
       icon: ListChecks,
       quickReplyConfig: {
         quickReplies: [
-          { buttonText: "About our pricings" },
+          { buttonText: "About our products" },
           { buttonText: "Talk to an agent" },
         ],
       },
@@ -3676,7 +3676,13 @@ export const ChatbotForm = ({
         },
       });
 
-      appRedirect.dispatch(Redirect.Action.APP, "/chat-agents");
+      try {
+        // Prefer App Bridge redirect to update top-level Admin URL in Shopify
+        appRedirect.dispatch(Redirect.Action.APP, "/chat-agents");
+      } catch (_) {
+        // Fallback: in-app navigation if App Bridge dispatch is unavailable
+        navigate("/chat-agents", { replace: true });
+      }
     } catch (err: any) {
       console.error(
         "Error creating chat agent:",

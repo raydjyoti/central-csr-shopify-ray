@@ -18,6 +18,7 @@ export default function Index() {
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState("");
   const [loadingChatbots, setLoadingChatbots] = useState(false);
   const [widgetEnabled, setWidgetEnabled] = useState(true);
+  const [centralUserId, setCentralUserId] = useState("");
 
 
   useEffect(() => {
@@ -31,6 +32,28 @@ export default function Index() {
         setShopDomain(data?.shop_domain ?? "");
         setWorkspaces(Array.isArray(data?.workspaces) ? data.workspaces : []);
         setWidgetEnabled(typeof data?.widget_enabled === 'boolean' ? data.widget_enabled : true);
+
+        // Detect Central account change and clear stale mappings
+        const incomingCentralUserId = data?.central_user_id || "";
+        setCentralUserId(incomingCentralUserId);
+        try {
+          const prevCentralUserId = window.localStorage.getItem("central_csr_user_id") || "";
+          if (incomingCentralUserId && prevCentralUserId && prevCentralUserId !== incomingCentralUserId) {
+            // Clear stored mapping on server and locally
+            try {
+              await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ workspace_id: null, chat_agent_id: null }),
+              });
+            } catch {}
+            setWorkspaceId("");
+            setChatAgentId("");
+            setStatus("Detected new Central account. Please select a workspace.");
+          }
+          window.localStorage.setItem("central_csr_user_id", incomingCentralUserId);
+        } catch {}
       } catch {
         setStatus("Failed to load settings.");
       } finally {
@@ -63,6 +86,17 @@ export default function Index() {
       }
     })();
   }, [workspaceId]);
+
+  // If the currently selected workspace is not in the refreshed list, reset selection
+  useEffect(() => {
+    if (!workspaceId) return;
+    const exists = workspaces.some((w) => w?.id === workspaceId);
+    if (!exists) {
+      setWorkspaceId("");
+      setChatAgentId("");
+      setStatus("Your previous workspace is no longer available. Please select a workspace.");
+    }
+  }, [workspaces]);
 
   useEffect(() => {
     (async () => {

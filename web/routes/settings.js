@@ -208,14 +208,14 @@ settingsRouter.post(
       const enabledState = typeof widget_enabled !== "undefined" ? !!widget_enabled : !!saved?.widget_enabled;
       const agentId = saved?.chat_agent_id || chat_agent_id || '';
       const widgetBase = (process.env.CENTRAL_CSR_WIDGET || '').replace(/\/$/, '');
-      const appBase = (process.env.HOST || process.env.APP_URL || '').replace(/\/$/, '');
+      const appBase = (process.env.HOST || process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
       const version = Date.now();
       const configUrl = `${appBase}/api/widget-config.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
-      await rest.post({
+      const createdConfig = await rest.post({
         path: 'script_tags',
         data: {
           script_tag: {
-            event: 'onload',
+            event: 'onshopify:load',
             src: configUrl,
             display_scope: 'online_store',
           },
@@ -224,13 +224,14 @@ settingsRouter.post(
       });
 
       // Loader is only needed when widget is enabled and an agent is selected
+      let loaderUrl = null;
       if ((saved?.chat_agent_id || chat_agent_id) && enabledState) {
-        const loaderUrl = `${widgetBase}/chat-widget-loader.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
-        await rest.post({
+        loaderUrl = `${widgetBase}/chat-widget-loader.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
+        const createdLoader = await rest.post({
           path: 'script_tags',
           data: {
             script_tag: {
-              event: 'onload',
+              event: 'onshopify:load',
               src: loaderUrl,
               display_scope: 'online_store',
             },

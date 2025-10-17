@@ -208,8 +208,9 @@ settingsRouter.post(
       const enabledState = typeof widget_enabled !== "undefined" ? !!widget_enabled : !!saved?.widget_enabled;
       const agentId = saved?.chat_agent_id || chat_agent_id || '';
       const widgetBase = (process.env.CENTRAL_CSR_WIDGET || '').replace(/\/$/, '');
+      const appBase = (process.env.HOST || process.env.APP_URL || '').replace(/\/$/, '');
       const version = Date.now();
-      const configUrl = `${widgetBase}/api/widget-config.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
+      const configUrl = `${appBase}/api/widget-config.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
       await rest.post({
         path: 'script_tags',
         data: {

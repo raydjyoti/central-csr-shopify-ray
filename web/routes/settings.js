@@ -215,7 +215,7 @@ settingsRouter.post(
         path: 'script_tags',
         data: {
           script_tag: {
-            event: 'onshopify:load',
+            event: 'onload',
             src: configUrl,
             display_scope: 'online_store',
           },
@@ -231,7 +231,7 @@ settingsRouter.post(
           path: 'script_tags',
           data: {
             script_tag: {
-              event: 'onshopify:load',
+              event: 'onload',
               src: loaderUrl,
               display_scope: 'online_store',
             },

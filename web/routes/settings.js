@@ -59,6 +59,65 @@ settingsRouter.get("/api/widget-config.js", (req, res) => {
   }
 });
 
+// Public (no-auth) bridge script so storefront can always load it without a Shopify session
+settingsRouter.get("/widget-bridge.js", (req, res) => {
+  try {
+    const chatAgentId = String(req.query?.chatAgentId || "").trim();
+    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    const allowedOrigins = (process.env.SHOPIFY_WIDGET_ALLOWED_ORIGINS || "onrender.com,trycentral.com")
+      .split(",")
+      .map((s) => s.trim().replace(/^@/, "").replace(/\/$/, ""))
+      .filter(Boolean)
+      .map((s) => {
+        try {
+          if (/^https?:\/\//i.test(s)) return new URL(s).hostname;
+          return s.replace(/^https?:\/\//i, "");
+        } catch {
+          return s;
+        }
+      });
+    const js = `
+      // Central widget runtime config (public bridge)
+      window.ChatWidgetConfig = { chatAgentId: ${JSON.stringify(chatAgentId)}, siteUrl: window.location.href };
+      (function(){
+        var ALLOWED = ${JSON.stringify(allowedOrigins)};
+        function isAllowed(origin){
+          try { var h = new URL(origin).hostname; return ALLOWED.some(function(s){ return h === s || h.endsWith('.' + s); }); } catch (e) { return false; }
+        }
+        try { console.debug('[Central Bridge] Installed (public). Allowed:', ALLOWED); window.CentralBridgeReady = true; } catch(_){ }
+        window.addEventListener('message', function(e){
+          if (!isAllowed(e.origin)) return;
+          var msg = e.data || {};
+          if (msg && msg.type === 'CENTRAL_ADD_TO_CART' && msg.id) {
+            try { console.debug('[Central Bridge] ATC received', msg); } catch(_){ }
+            fetch('/cart/add.js', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ id: String(msg.id), quantity: msg.quantity || 1 })
+            }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, json: j }; }); })
+              .then(function(res){
+                if (e.source && e.origin) {
+                  e.source.postMessage({ type: 'CENTRAL_ADD_TO_CART_OK', id: msg.id, data: res.json }, e.origin);
+                }
+                try { window.dispatchEvent(new CustomEvent('central:cart:added', { detail: { variantId: msg.id, quantity: msg.quantity || 1 } })); } catch(_){ }
+              })
+              .catch(function(err){
+                try { console.error('[Central Bridge] ATC failed', err); } catch(_){ }
+                if (e.source && e.origin) {
+                  e.source.postMessage({ type: 'CENTRAL_ADD_TO_CART_ERR', id: msg.id, error: String(err && err.message || err) }, e.origin);
+                }
+              });
+          }
+        });
+      })();
+    `;
+    res.status(200).send(js);
+  } catch (e) {
+    res.status(200).send("// widget bridge error");
+  }
+});
+
 // Read settings
 settingsRouter.get(
   "/api/settings",
@@ -210,7 +269,7 @@ settingsRouter.post(
       const widgetBase = (process.env.CENTRAL_CSR_WIDGET || '').replace(/\/$/, '');
       const appBase = (process.env.HOST || process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
       const version = Date.now();
-      const configUrl = `${appBase}/api/widget-config.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
+      const configUrl = `${appBase}/widget-bridge.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
       const createdConfig = await rest.post({
         path: 'script_tags',
         data: {

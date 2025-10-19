@@ -81,6 +81,11 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
       // Central widget runtime config (public bridge)
       window.ChatWidgetConfig = { chatAgentId: ${JSON.stringify(chatAgentId)}, siteUrl: window.location.href };
       (function(){
+        // Idempotent install guard to avoid duplicate listeners if ScriptTag is mounted multiple times
+        if (window.__CentralBridgeInstalled) { try { console.debug('[Central Bridge] Already installed (public).'); } catch(_){}; return; }
+        window.__CentralBridgeInstalled = true;
+        // Global throttle to prevent multiple concurrent ATC requests across duplicate listeners
+        if (typeof window.__CentralBridgeATCInflight === 'undefined') { window.__CentralBridgeATCInflight = false; }
         var ALLOWED = ${JSON.stringify(allowedOrigins)};
         function isAllowed(origin){
           try { var h = new URL(origin).hostname; return ALLOWED.some(function(s){ return h === s || h.endsWith('.' + s); }); } catch (e) { return false; }
@@ -91,6 +96,9 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
           var msg = e.data || {};
           if (msg && msg.type === 'CENTRAL_ADD_TO_CART' && msg.id) {
             try { console.debug('[Central Bridge] ATC received', msg); } catch(_){ }
+            // Drop if an ATC is already in flight (prevents duplicate fetches)
+            if (window.__CentralBridgeATCInflight) { try { console.debug('[Central Bridge] ATC suppressed (inflight)'); } catch(_){}; return; }
+            window.__CentralBridgeATCInflight = true;
             fetch('/cart/add.js', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -101,12 +109,14 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                   e.source.postMessage({ type: 'CENTRAL_ADD_TO_CART_OK', id: msg.id, data: res.json }, e.origin);
                 }
                 try { window.dispatchEvent(new CustomEvent('central:cart:added', { detail: { variantId: msg.id, quantity: msg.quantity || 1 } })); } catch(_){ }
+                try { window.__CentralBridgeATCInflight = false; } catch(_){}
               })
               .catch(function(err){
                 try { console.error('[Central Bridge] ATC failed', err); } catch(_){ }
                 if (e.source && e.origin) {
                   e.source.postMessage({ type: 'CENTRAL_ADD_TO_CART_ERR', id: msg.id, error: String(err && err.message || err) }, e.origin);
                 }
+                try { window.__CentralBridgeATCInflight = false; } catch(_){}
               });
           }
         });
@@ -253,51 +263,63 @@ settingsRouter.post(
         const session = res.locals.shopify.session;
         const rest = new shopify.api.clients.Rest({ session });
 
-        // Remove existing tags that point to our widget loader
+        const widgetBase = (process.env.CENTRAL_CSR_WIDGET || '').replace(/\/$/, '');
+        const appBase = (process.env.HOST || process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+
+        // Remove existing tags that point to our scripts (bridge/loader/legacy)
         const listResp = await rest.get({ path: 'script_tags' });
         const allTags = (listResp?.body?.script_tags || listResp?.data?.script_tags || []);
         const staleTags = allTags.filter((t) => {
           const src = String(t?.src || "");
-          return src.includes('/chat-widget-loader.js') || src.includes('/api/widget-config.js');
+          return (
+            // exact host/path matches
+            src.startsWith(`${appBase}/widget-bridge.js`) ||
+            src.startsWith(`${widgetBase}/chat-widget-loader.js`) ||
+            // legacy path cleanup
+            src.includes('/api/widget-config.js') ||
+            // fallback contains in case of different query param order
+            src.includes('/widget-bridge.js')
+          );
         });
         for (const tag of staleTags) {
           try { await rest.delete({ path: `script_tags/${tag.id}` }); } catch (e) { /* ignore */ }
         }
-      // Always create the config/bridge script so postMessage add-to-cart works even if widget is disabled
-      const enabledState = typeof widget_enabled !== "undefined" ? !!widget_enabled : !!saved?.widget_enabled;
-      const agentId = saved?.chat_agent_id || chat_agent_id || '';
-      const widgetBase = (process.env.CENTRAL_CSR_WIDGET || '').replace(/\/$/, '');
-      const appBase = (process.env.HOST || process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-      const version = Date.now();
-      const configUrl = `${appBase}/widget-bridge.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
-      const createdConfig = await rest.post({
-        path: 'script_tags',
-        data: {
-          script_tag: {
-            event: 'onload',
-            src: configUrl,
-            display_scope: 'online_store',
-          },
-        },
-        type: 'application/json',
-      });
+        // Decide whether to re-create any ScriptTags
+        const enabledState = typeof widget_enabled !== "undefined" ? !!widget_enabled : !!saved?.widget_enabled;
+        const agentId = saved?.chat_agent_id || chat_agent_id || '';
+        const version = Date.now();
 
-      // Loader is only needed when widget is enabled and an agent is selected
-      let loaderUrl = null;
-      if ((saved?.chat_agent_id || chat_agent_id) && enabledState) {
-        loaderUrl = `${widgetBase}/chat-widget-loader.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
-        const createdLoader = await rest.post({
-          path: 'script_tags',
-          data: {
-            script_tag: {
-              event: 'onload',
-              src: loaderUrl,
-              display_scope: 'online_store',
+        if (agentId && enabledState) {
+          // Create bridge and loader only when enabled and agent selected
+          const configUrl = `${appBase}/widget-bridge.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
+          await rest.post({
+            path: 'script_tags',
+            data: {
+              script_tag: {
+                event: 'onload',
+                src: configUrl,
+                display_scope: 'online_store',
+              },
             },
-          },
-          type: 'application/json',
-        });
-      }
+            type: 'application/json',
+          });
+
+          const loaderUrl = `${widgetBase}/chat-widget-loader.js?chatAgentId=${encodeURIComponent(agentId)}&v=${version}`;
+          await rest.post({
+            path: 'script_tags',
+            data: {
+              script_tag: {
+                event: 'onload',
+                src: loaderUrl,
+                display_scope: 'online_store',
+              },
+            },
+            type: 'application/json',
+          });
+        } else {
+          // If disabled or no agent, we leave no Central ScriptTags mounted (they were deleted above)
+          try { console.debug('Central: Widget disabled or no agent; ScriptTags removed.'); } catch(_) {}
+        }
       } catch (mountErr) {
         console.error('Failed to mount widget ScriptTag:', mountErr?.response?.data || mountErr);
       }

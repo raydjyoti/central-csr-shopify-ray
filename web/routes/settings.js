@@ -93,7 +93,7 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
         try { console.debug('[Central Bridge] Installed (public). Allowed:', ALLOWED); window.CentralBridgeReady = true; } catch(_){ }
         window.addEventListener('message', function(e){
           if (!isAllowed(e.origin)) return;
-          var msg = e.data || {};
+          var msg = (e && e.data && typeof e.data === 'object') ? e.data : {};
           if (msg && msg.type === 'CENTRAL_ADD_TO_CART' && msg.id) {
             try { console.debug('[Central Bridge] ATC received', msg); } catch(_){ }
             // Drop if an ATC is already in flight (prevents duplicate fetches)
@@ -102,7 +102,8 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
             fetch('/cart/add.js', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-              body: JSON.stringify({ id: String(msg.id), quantity: msg.quantity || 1 })
+              body: JSON.stringify({ id: String(msg.id), quantity: msg.quantity || 1 }),
+              credentials: 'same-origin'
             }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, json: j }; }); })
               .then(function(res){
                 if (e.source && e.origin) {
@@ -111,6 +112,10 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                 try { window.dispatchEvent(new CustomEvent('central:cart:added', { detail: { variantId: msg.id, quantity: msg.quantity || 1 } })); } catch(_){ }
                 // Fetch latest cart and broadcast common events / update common selectors
                 try {
+                  // Suppress premature opens while sections hydrate
+                  var suppress = true;
+                  var swallowCartOpen = function(ev){ if (suppress) { try { ev.stopImmediatePropagation(); ev.stopPropagation(); ev.preventDefault(); } catch(_){} } };
+                  try { document.addEventListener('cart:open', swallowCartOpen, true); } catch(_){ }
                   fetch('/cart.js', { credentials: 'same-origin' })
                     .then(function(cr){ return cr.json(); })
                     .then(function(cart){
@@ -123,7 +128,6 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                         document.dispatchEvent(new CustomEvent('ajaxCart:afterAdd', { detail: res.json }));
                         document.dispatchEvent(new CustomEvent('theme:cart:update', { detail: cart }));
                         document.dispatchEvent(new CustomEvent('cart:change', { detail: cart }));
-                        document.dispatchEvent(new CustomEvent('cart:open'));
                       } catch(_){ }
                       try {
                         // Update common cart count bubbles/selectors
@@ -151,18 +155,30 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                           .then(function(sr){ return sr.json(); })
                           .then(function(sections){
                             try {
-                              Object.keys(sections || {}).forEach(function(key){
-                                var html = sections[key];
-                                if (!html) return;
-                                var container = document.getElementById('shopify-section-' + key) || document.querySelector('[data-section-id="' + key + '"]');
-                                // Avoid replacing custom elements; let their renderers handle updates
-                                if (container && key !== 'cart-drawer' && key !== 'cart-notification') {
-                                  container.innerHTML = html;
-                                }
+                              // 1) Ensure cart-drawer section exists. If missing, create it from the fetched HTML
+                              var drawerSectionId = 'shopify-section-cart-drawer';
+                              var drawerContainer = document.getElementById(drawerSectionId) || document.querySelector('[data-section-id="cart-drawer"]');
+                              var drawerHtml = sections && sections['cart-drawer'];
+                              if (!drawerContainer && drawerHtml && !document.getElementById('shopify-section-cart-drawer')) {
+                                var tmp = document.createElement('div');
+                                tmp.id = drawerSectionId;
+                                tmp.setAttribute('data-section-id', 'cart-drawer');
+                                tmp.innerHTML = drawerHtml;
+                                (document.body || document.documentElement).appendChild(tmp);
+                                drawerContainer = tmp;
+                              }
+
+                              // 2) Update safe/common sections (icon bubble, notification bubble) only
+                              ['cart-icon-bubble','cart-notification-bubble'].forEach(function(key){
+                                try {
+                                  var html = sections && sections[key];
+                                  if (!html) return;
+                                  var container = document.getElementById('shopify-section-' + key) || document.querySelector('[data-section-id="' + key + '"]');
+                                  if (container) container.innerHTML = html;
+                                } catch(_) {}
                               });
-                              // Notify listeners with the full sections payload
-                              try { document.dispatchEvent(new CustomEvent('cart:sections-updated', { detail: { sections: sections } })); } catch(_){ }
-                              // If theme provides web components with renderers (e.g., Dawn), pass { sections: ... }
+
+                              // 3) Let theme web components re-render if available
                               try {
                                 var parsedState = { sections: sections };
                                 var drawerEl = document.querySelector('cart-drawer');
@@ -173,46 +189,65 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                                 if (notifEl && typeof notifEl.renderContents === 'function') {
                                   notifEl.renderContents(parsedState);
                                 }
-                              } catch(_){ }
-                              // After DOM updates, open the drawer if it exists and cart has items
-                              try {
-                                if ((cart && cart.item_count > 0)) {
-                                  var tryOpenCartUI = function(){
-                                    try {
-                                      // Prefer cart-notification if present
-                                      var notif = document.querySelector('cart-notification');
-                                      if (notif && typeof notif.open === 'function') {
-                                        notif.open();
-                                        return true;
-                                      }
-                                      // Otherwise open cart-drawer when its inner container is ready
-                                      var inner = document.querySelector('cart-drawer .drawer__inner, #CartDrawer .drawer__inner');
-                                      if (inner) {
-                                        var d = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
-                                        if (d) {
-                                          if (typeof d.open === 'function') { d.open(); }
-                                          else { document.dispatchEvent(new CustomEvent('cart:open')); }
-                                          return true;
-                                        }
-                                      }
-                                      return false;
-                                    } catch(_) { return false; }
-                                  };
-                                  var attempts = 0; var maxAttempts = 30; // allow a bit more time for first render
-                                  (function retry(){
-                                    if (tryOpenCartUI()) return;
+                              } catch(_) { }
+
+                              // 4) Safe open: only open if expected focus roots exist
+                              var canOpenNotif = (function(){
+                                try {
+                                  var el = document.querySelector('cart-notification');
+                                  return el && (el.querySelector('[role="dialog"], .cart-notification') || el.shadowRoot);
+                                } catch(_) { return false; }
+                              })();
+
+                              var canOpenDrawer = (function(){
+                                try {
+                                  var inner = document.querySelector('cart-drawer .drawer__inner, #CartDrawer .drawer__inner');
+                                  var host  = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
+                                  return host && inner;
+                                } catch(_) { return false; }
+                              })();
+
+                              var opened = false;
+                              if (cart && cart.item_count > 0) {
+                                if (canOpenNotif) {
+                                  try { var n = document.querySelector('cart-notification'); if (n && typeof n.open === 'function') { n.open(); opened = true; } } catch(_) {}
+                                }
+                                if (!opened && canOpenDrawer) {
+                                  try {
+                                    var host = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
+                                    if (host && typeof host.open === 'function') { host.open(); opened = true; }
+                                  } catch(_) {}
+                                }
+                                if (!opened) {
+                                  var attempts = 0, maxAttempts = 20;
+                                  (function retryOpen(){
                                     if (attempts++ >= maxAttempts) return;
-                                    setTimeout(retry, 50);
+                                    try {
+                                      var n2 = document.querySelector('cart-notification');
+                                      var dInner = document.querySelector('cart-drawer .drawer__inner, #CartDrawer .drawer__inner');
+                                      var dHost  = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
+                                      if (n2 && typeof n2.open === 'function') { n2.open(); return; }
+                                      if (dHost && dInner) {
+                                        if (typeof dHost.open === 'function') { dHost.open(); return; }
+                                        return;
+                                      }
+                                    } catch(_) {}
+                                    setTimeout(retryOpen, 50);
                                   })();
                                 }
-                              } catch(_){ }
+                              }
+
+                              // 5) Broadcast sections payload to any other listeners
+                              try { document.dispatchEvent(new CustomEvent('cart:sections-updated', { detail: { sections: sections } })); } catch(_){ }
+                              // Release suppression now that DOM is ready
+                              try { suppress = false; document.removeEventListener('cart:open', swallowCartOpen, true); } catch(_){ }
                             } catch(_){ }
                           })
                           .catch(function(){});
                       } catch(_){ }
                     }).catch(function(){});
                 } catch(_){ }
-                try { window.__CentralBridgeATCInflight = false; } catch(_){}
+                try { window.__CentralBridgeATCInflight = false; } catch(_){ }
               })
               .catch(function(err){
                 try { console.error('[Central Bridge] ATC failed', err); } catch(_){ }

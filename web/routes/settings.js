@@ -112,7 +112,7 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                 try { window.dispatchEvent(new CustomEvent('central:cart:added', { detail: { variantId: msg.id, quantity: msg.quantity || 1 } })); } catch(_){ }
                 // Fetch latest cart and broadcast common events / update common selectors
                 try {
-                  // Suppress premature opens while sections hydrate
+                  // Suppress premature opens while sections hydrate (no longer opening drawer, but keep guard harmless)
                   var suppress = true;
                   var swallowCartOpen = function(ev){ if (suppress) { try { ev.stopImmediatePropagation(); ev.stopPropagation(); ev.preventDefault(); } catch(_){} } };
                   try { document.addEventListener('cart:open', swallowCartOpen, true); } catch(_){ }
@@ -144,108 +144,9 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                           try { el.setAttribute && el.setAttribute('data-cart-count', String(cart.item_count || 0)); } catch(_){ }
                         });
                       } catch(_){ }
-                      // Attempt Section Rendering API refresh for common cart sections
-                      try {
-                        // Request only safe, commonly present sections to avoid 400s on unknown keys
-                        var sectionKeys = ['cart-icon-bubble','cart-drawer','cart-notification','cart-notification-bubble'];
-                        var sectionsPath = (location && location.pathname) || '/';
-                        var sep = sectionsPath.indexOf('?') >= 0 ? '&' : '?';
-                        var url = sectionsPath + sep + 'sections=' + encodeURIComponent(sectionKeys.join(',')) + '&sections_url=' + encodeURIComponent(sectionsPath);
-                        fetch(url, { credentials: 'same-origin' })
-                          .then(function(sr){ return sr.json(); })
-                          .then(function(sections){
-                            try {
-                              // 1) Ensure cart-drawer section exists. If missing, create it from the fetched HTML
-                              var drawerSectionId = 'shopify-section-cart-drawer';
-                              var drawerContainer = document.getElementById(drawerSectionId) || document.querySelector('[data-section-id="cart-drawer"]');
-                              var drawerHtml = sections && sections['cart-drawer'];
-                              if (!drawerContainer && drawerHtml && !document.getElementById('shopify-section-cart-drawer')) {
-                                var tmp = document.createElement('div');
-                                tmp.id = drawerSectionId;
-                                tmp.setAttribute('data-section-id', 'cart-drawer');
-                                tmp.innerHTML = drawerHtml;
-                                (document.body || document.documentElement).appendChild(tmp);
-                                drawerContainer = tmp;
-                              }
-
-                              // 2) Update safe/common sections (icon bubble, notification bubble) only
-                              ['cart-icon-bubble','cart-notification-bubble'].forEach(function(key){
-                                try {
-                                  var html = sections && sections[key];
-                                  if (!html) return;
-                                  var container = document.getElementById('shopify-section-' + key) || document.querySelector('[data-section-id="' + key + '"]');
-                                  if (container) container.innerHTML = html;
-                                } catch(_) {}
-                              });
-
-                              // 3) Let theme web components re-render if available
-                              try {
-                                var parsedState = { sections: sections };
-                                var drawerEl = document.querySelector('cart-drawer');
-                                if (drawerEl && typeof drawerEl.renderContents === 'function') {
-                                  drawerEl.renderContents(parsedState);
-                                }
-                                var notifEl = document.querySelector('cart-notification');
-                                if (notifEl && typeof notifEl.renderContents === 'function') {
-                                  notifEl.renderContents(parsedState);
-                                }
-                              } catch(_) { }
-
-                              // 4) Safe open: only open if expected focus roots exist
-                              var canOpenNotif = (function(){
-                                try {
-                                  var el = document.querySelector('cart-notification');
-                                  return el && (el.querySelector('[role="dialog"], .cart-notification') || el.shadowRoot);
-                                } catch(_) { return false; }
-                              })();
-
-                              var canOpenDrawer = (function(){
-                                try {
-                                  var inner = document.querySelector('cart-drawer .drawer__inner, #CartDrawer .drawer__inner');
-                                  var host  = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
-                                  return host && inner;
-                                } catch(_) { return false; }
-                              })();
-
-                              var opened = false;
-                              if (cart && cart.item_count > 0) {
-                                if (canOpenNotif) {
-                                  try { var n = document.querySelector('cart-notification'); if (n && typeof n.open === 'function') { n.open(); opened = true; } } catch(_) {}
-                                }
-                                if (!opened && canOpenDrawer) {
-                                  try {
-                                    var host = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
-                                    if (host && typeof host.open === 'function') { host.open(); opened = true; }
-                                  } catch(_) {}
-                                }
-                                if (!opened) {
-                                  var attempts = 0, maxAttempts = 20;
-                                  (function retryOpen(){
-                                    if (attempts++ >= maxAttempts) return;
-                                    try {
-                                      var n2 = document.querySelector('cart-notification');
-                                      var dInner = document.querySelector('cart-drawer .drawer__inner, #CartDrawer .drawer__inner');
-                                      var dHost  = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
-                                      if (n2 && typeof n2.open === 'function') { n2.open(); return; }
-                                      if (dHost && dInner) {
-                                        if (typeof dHost.open === 'function') { dHost.open(); return; }
-                                        return;
-                                      }
-                                    } catch(_) {}
-                                    setTimeout(retryOpen, 50);
-                                  })();
-                                }
-                              }
-
-                              // 5) Broadcast sections payload to any other listeners
-                              try { document.dispatchEvent(new CustomEvent('cart:sections-updated', { detail: { sections: sections } })); } catch(_){ }
-                              // Release suppression now that DOM is ready
-                              try { suppress = false; document.removeEventListener('cart:open', swallowCartOpen, true); } catch(_){ }
-                            } catch(_){ }
-                          })
-                          .catch(function(){});
-                      } catch(_){ }
-                    }).catch(function(){});
+                      // No theme drawer/sections manipulation; we own confirmation UX in widget
+                      try { suppress = false; document.removeEventListener('cart:open', swallowCartOpen, true); } catch(_){ }
+                    }).catch(function(){ try { suppress = false; document.removeEventListener('cart:open', swallowCartOpen, true); } catch(_){} });
                 } catch(_){ }
                 try { window.__CentralBridgeATCInflight = false; } catch(_){ }
               })

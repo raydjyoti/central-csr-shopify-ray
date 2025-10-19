@@ -156,6 +156,17 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                                   container.innerHTML = html;
                                 }
                               });
+                              // If theme provides web components with renderers (e.g., Dawn)
+                              try {
+                                var drawerEl = document.querySelector('cart-drawer');
+                                if (drawerEl && typeof drawerEl.renderContents === 'function') {
+                                  drawerEl.renderContents(sections);
+                                }
+                                var notifEl = document.querySelector('cart-notification');
+                                if (notifEl && typeof notifEl.renderContents === 'function') {
+                                  notifEl.renderContents(sections);
+                                }
+                              } catch(_){ }
                             } catch(_){ }
                           })
                           .catch(function(){});

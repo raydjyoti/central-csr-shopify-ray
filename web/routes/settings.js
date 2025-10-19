@@ -142,18 +142,11 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                       } catch(_){ }
                       // Attempt Section Rendering API refresh for common cart sections
                       try {
-                        var sectionKeys = [
-                          'cart-icon-bubble',
-                          'cart-drawer',
-                          'cart-notification',
-                          'cart-notification-bubble',
-                          'cart-drawer-items',
-                          'cart-items',
-                          'main-cart-items',
-                          'cart-drawer-footer',
-                          'cart-live-region-text'
-                        ];
-                        var url = '/?sections=' + encodeURIComponent(sectionKeys.join(','));
+                        // Request only safe, commonly present sections to avoid 400s on unknown keys
+                        var sectionKeys = ['cart-icon-bubble','cart-drawer','cart-notification','cart-notification-bubble'];
+                        var sectionsPath = (location && location.pathname) || '/';
+                        var sep = sectionsPath.indexOf('?') >= 0 ? '&' : '?';
+                        var url = sectionsPath + sep + 'sections=' + encodeURIComponent(sectionKeys.join(',')) + '&sections_url=' + encodeURIComponent(sectionsPath);
                         fetch(url, { credentials: 'same-origin' })
                           .then(function(sr){ return sr.json(); })
                           .then(function(sections){

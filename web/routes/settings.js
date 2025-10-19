@@ -170,6 +170,20 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                                   notifEl.renderContents(parsedState);
                                 }
                               } catch(_){ }
+                              // After DOM updates, open the drawer if it exists and cart has items
+                              try {
+                                if ((cart && cart.item_count > 0)) {
+                                  requestAnimationFrame(function(){
+                                    try {
+                                      var d = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
+                                      if (d) {
+                                        if (typeof d.open === 'function') { d.open(); }
+                                        else { document.dispatchEvent(new CustomEvent('cart:open')); }
+                                      }
+                                    } catch(_){ }
+                                  });
+                                }
+                              } catch(_){ }
                             } catch(_){ }
                           })
                           .catch(function(){});

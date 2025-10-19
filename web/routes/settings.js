@@ -109,6 +109,59 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                   e.source.postMessage({ type: 'CENTRAL_ADD_TO_CART_OK', id: msg.id, data: res.json }, e.origin);
                 }
                 try { window.dispatchEvent(new CustomEvent('central:cart:added', { detail: { variantId: msg.id, quantity: msg.quantity || 1 } })); } catch(_){ }
+                // Fetch latest cart and broadcast common events / update common selectors
+                try {
+                  fetch('/cart.js', { credentials: 'same-origin' })
+                    .then(function(cr){ return cr.json(); })
+                    .then(function(cart){
+                      try {
+                        // Broad events to support different themes/apps
+                        window.dispatchEvent(new CustomEvent('central:cart:updated', { detail: cart }));
+                        document.dispatchEvent(new CustomEvent('cart:updated', { detail: cart }));
+                        document.dispatchEvent(new CustomEvent('cart:refresh'));
+                        document.dispatchEvent(new CustomEvent('product:added', { detail: { item: res.json, cart: cart } }));
+                        document.dispatchEvent(new CustomEvent('ajaxCart:afterAdd', { detail: res.json }));
+                        document.dispatchEvent(new CustomEvent('theme:cart:update', { detail: cart }));
+                        document.dispatchEvent(new CustomEvent('cart:change', { detail: cart }));
+                        document.dispatchEvent(new CustomEvent('cart:open'));
+                      } catch(_){ }
+                      try {
+                        // Update common cart count bubbles/selectors
+                        var sels = [
+                          '[data-cart-count]',
+                          '.cart-count',
+                          '.cart-count-bubble',
+                          '[data-cart-count-bubble]',
+                          '#cart-icon-bubble .cart-count-bubble'
+                        ];
+                        var els = document.querySelectorAll(sels.join(','));
+                        els.forEach(function(el){
+                          try { el.textContent = String(cart.item_count || 0); } catch(_){ }
+                          try { el.setAttribute && el.setAttribute('data-cart-count', String(cart.item_count || 0)); } catch(_){ }
+                        });
+                      } catch(_){ }
+                      // Attempt Section Rendering API refresh for common cart sections
+                      try {
+                        var sectionKeys = ['cart-icon-bubble','cart-drawer','cart-notification','cart-notification-bubble'];
+                        var url = '/?sections=' + encodeURIComponent(sectionKeys.join(','));
+                        fetch(url, { credentials: 'same-origin' })
+                          .then(function(sr){ return sr.json(); })
+                          .then(function(sections){
+                            try {
+                              Object.keys(sections || {}).forEach(function(key){
+                                var html = sections[key];
+                                if (!html) return;
+                                var container = document.getElementById('shopify-section-' + key) || document.querySelector('[data-section-id="' + key + '"]');
+                                if (container) {
+                                  container.innerHTML = html;
+                                }
+                              });
+                            } catch(_){ }
+                          })
+                          .catch(function(){});
+                      } catch(_){ }
+                    }).catch(function(){});
+                } catch(_){ }
                 try { window.__CentralBridgeATCInflight = false; } catch(_){}
               })
               .catch(function(err){

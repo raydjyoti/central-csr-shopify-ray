@@ -156,15 +156,18 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                                   container.innerHTML = html;
                                 }
                               });
-                              // If theme provides web components with renderers (e.g., Dawn)
+                              // Notify listeners with the full sections payload
+                              try { document.dispatchEvent(new CustomEvent('cart:sections-updated', { detail: { sections: sections } })); } catch(_){ }
+                              // If theme provides web components with renderers (e.g., Dawn), pass { sections: ... }
                               try {
+                                var parsedState = { sections: sections };
                                 var drawerEl = document.querySelector('cart-drawer');
                                 if (drawerEl && typeof drawerEl.renderContents === 'function') {
-                                  drawerEl.renderContents(sections);
+                                  drawerEl.renderContents(parsedState);
                                 }
                                 var notifEl = document.querySelector('cart-notification');
                                 if (notifEl && typeof notifEl.renderContents === 'function') {
-                                  notifEl.renderContents(sections);
+                                  notifEl.renderContents(parsedState);
                                 }
                               } catch(_){ }
                             } catch(_){ }

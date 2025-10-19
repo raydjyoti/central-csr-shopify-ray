@@ -142,7 +142,17 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                       } catch(_){ }
                       // Attempt Section Rendering API refresh for common cart sections
                       try {
-                        var sectionKeys = ['cart-icon-bubble','cart-drawer','cart-notification','cart-notification-bubble'];
+                        var sectionKeys = [
+                          'cart-icon-bubble',
+                          'cart-drawer',
+                          'cart-notification',
+                          'cart-notification-bubble',
+                          'cart-drawer-items',
+                          'cart-items',
+                          'main-cart-items',
+                          'cart-drawer-footer',
+                          'cart-live-region-text'
+                        ];
                         var url = '/?sections=' + encodeURIComponent(sectionKeys.join(','));
                         fetch(url, { credentials: 'same-origin' })
                           .then(function(sr){ return sr.json(); })
@@ -152,7 +162,8 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                                 var html = sections[key];
                                 if (!html) return;
                                 var container = document.getElementById('shopify-section-' + key) || document.querySelector('[data-section-id="' + key + '"]');
-                                if (container) {
+                                // Avoid replacing custom elements; let their renderers handle updates
+                                if (container && key !== 'cart-drawer' && key !== 'cart-notification') {
                                   container.innerHTML = html;
                                 }
                               });
@@ -194,7 +205,7 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                                       return false;
                                     } catch(_) { return false; }
                                   };
-                                  var attempts = 0; var maxAttempts = 20; // ~1s @ 50ms
+                                  var attempts = 0; var maxAttempts = 30; // allow a bit more time for first render
                                   (function retry(){
                                     if (tryOpenCartUI()) return;
                                     if (attempts++ >= maxAttempts) return;

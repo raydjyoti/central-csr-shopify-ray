@@ -286,7 +286,7 @@ settingsRouter.post(
         }
         // Decide whether to re-create any ScriptTags
         const enabledState = typeof widget_enabled !== "undefined" ? !!widget_enabled : !!saved?.widget_enabled;
-        const agentId = saved?.chat_agent_id || chat_agent_id || '';
+        const agentId = chat_agent_id || saved?.chat_agent_id || '';
         const version = Date.now();
 
         if (agentId && enabledState) {

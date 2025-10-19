@@ -173,15 +173,33 @@ settingsRouter.get("/widget-bridge.js", (req, res) => {
                               // After DOM updates, open the drawer if it exists and cart has items
                               try {
                                 if ((cart && cart.item_count > 0)) {
-                                  requestAnimationFrame(function(){
+                                  var tryOpenCartUI = function(){
                                     try {
-                                      var d = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
-                                      if (d) {
-                                        if (typeof d.open === 'function') { d.open(); }
-                                        else { document.dispatchEvent(new CustomEvent('cart:open')); }
+                                      // Prefer cart-notification if present
+                                      var notif = document.querySelector('cart-notification');
+                                      if (notif && typeof notif.open === 'function') {
+                                        notif.open();
+                                        return true;
                                       }
-                                    } catch(_){ }
-                                  });
+                                      // Otherwise open cart-drawer when its inner container is ready
+                                      var inner = document.querySelector('cart-drawer .drawer__inner, #CartDrawer .drawer__inner');
+                                      if (inner) {
+                                        var d = document.querySelector('cart-drawer') || document.getElementById('CartDrawer');
+                                        if (d) {
+                                          if (typeof d.open === 'function') { d.open(); }
+                                          else { document.dispatchEvent(new CustomEvent('cart:open')); }
+                                          return true;
+                                        }
+                                      }
+                                      return false;
+                                    } catch(_) { return false; }
+                                  };
+                                  var attempts = 0; var maxAttempts = 20; // ~1s @ 50ms
+                                  (function retry(){
+                                    if (tryOpenCartUI()) return;
+                                    if (attempts++ >= maxAttempts) return;
+                                    setTimeout(retry, 50);
+                                  })();
                                 }
                               } catch(_){ }
                             } catch(_){ }

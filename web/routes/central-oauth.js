@@ -250,13 +250,17 @@ centralOAuthRouter.put("/api/central/chatbot/update/:chatbotId", upload.any(), a
   try {
     const workspaceId = String(req.query?.workspace_id || req.headers["x-workspace-id"] || "").trim();
     const shop = String(req.query?.shop || req.query?.shop_domain || req.headers["x-shop-domain"] || "").trim();
+
     if (!workspaceId || !shop) return res.status(400).json({ error: "Missing workspace_id or shop" });
+
     const accessToken = await getCentralAccessTokenForShop(shop);
     if (!accessToken) return res.status(401).json({ error: "No Central token found" });
 
     const form = new FormData();
     Object.entries(req.body || {}).forEach(([k, v]) => form.append(k, v));
     (req.files || []).forEach((f) => form.append(f.fieldname, f.buffer, { filename: f.originalname, contentType: f.mimetype }));
+
+    console.log(form, "🌈")
 
     const resp = await axios.put(`${process.env.CENTRAL_CSR_BACKEND_URL}/api/chatbot/update/${req.params.chatbotId}`, form, {
       headers: { ...form.getHeaders(), Authorization: `Bearer ${accessToken}`, "x-workspace-id": workspaceId },
@@ -265,7 +269,7 @@ centralOAuthRouter.put("/api/central/chatbot/update/:chatbotId", upload.any(), a
     });
     return res.status(resp.status).json(resp.data);
   } catch (e) {
-    return res.status(500).json({ error: "Failed to update chatbot" });
+    return res.status(500).json({ error: e?.response?.data || e?.message || e });
   }
 });
 

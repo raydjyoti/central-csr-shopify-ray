@@ -2,7 +2,7 @@
 
 client_id = "2e298c46f441578735f8c2fb971e262e"
 name = "Central Chats"
-application_url = "https://shopify-app-template-node-production-2adb.up.railway.app"
+application_url = "https://centralwidget.cloud"
 embedded = true
 
 [build]
@@ -12,9 +12,21 @@ include_config_on_deploy = true
 [webhooks]
 api_version = "2025-10"
 
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request"]
+uri = "https://centralwidget.cloud/webhooks/customers/data_request"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/redact"]
+uri = "https://centralwidget.cloud/webhooks/customers/redact"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["shop/redact"]
+uri = "https://centralwidget.cloud/webhooks/shop/redact"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_products,read_orders,read_script_tags,write_script_tags"
 
 [auth]
-redirect_urls = [ "https://shopify-app-template-node-production-2adb.up.railway.app/api/auth/callback"]
+redirect_urls = [ "https://centralwidget.cloud/api/auth/callback"]

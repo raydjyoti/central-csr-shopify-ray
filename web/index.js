@@ -12,6 +12,7 @@ import { supabase } from "./supabase.js";
 import { DeliveryMethod } from "@shopify/shopify-api";
 import { settingsRouter } from "./routes/settings.js";
 import { centralOAuthRouter } from "./routes/central-oauth.js";
+import { webhooksRouter, registerMandatoryWebhooks } from "./routes/webhooks.js";
 
 const PORT = parseInt(
   process.env.BACKEND_PORT || process.env.PORT || "3000",
@@ -75,26 +76,9 @@ app.get(
         }
       }
 
-      // Register webhooks for this shop
-
-      await shopify.api.webhooks.addHandlers({
-        APP_UNINSTALLED: {
-          deliveryMethod: DeliveryMethod.Http,
-          callbackUrl: shopify.config.webhooks.path, // '/webhooks'
-        },
-        CUSTOMERS_DATA_REQUEST: {
-          deliveryMethod: DeliveryMethod.Http,
-          callbackUrl: shopify.config.webhooks.path,
-        },
-        CUSTOMERS_REDACT: {
-          deliveryMethod: DeliveryMethod.Http,
-          callbackUrl: shopify.config.webhooks.path,
-        },
-        SHOP_REDACT: {
-          deliveryMethod: DeliveryMethod.Http,
-          callbackUrl: shopify.config.webhooks.path,
-        },
-      });
+      // Register mandatory GDPR webhooks to custom endpoints
+      const appBase = (process.env.HOST || process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, "");
+      try { await registerMandatoryWebhooks(session, appBase); } catch (e) { console.error("Webhook register error", e); }
 
       // continue to the built-in redirect middleware
 
@@ -132,6 +116,9 @@ app.post(
     },
   })
 );
+
+// Mount our explicit webhook endpoints (with HMAC verification)
+app.use(webhooksRouter);
 
 // If you are adding routes outside of the /api path, remember to
 // also add a proxy rule for them in web/frontend/vite.config.js

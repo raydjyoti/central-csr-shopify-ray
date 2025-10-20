@@ -260,7 +260,7 @@ centralOAuthRouter.put("/api/central/chatbot/update/:chatbotId", upload.any(), a
     Object.entries(req.body || {}).forEach(([k, v]) => form.append(k, v));
     (req.files || []).forEach((f) => form.append(f.fieldname, f.buffer, { filename: f.originalname, contentType: f.mimetype }));
 
-    console.log(form, "🌈")
+    console.log({form}, "🌈", {accessToken})
 
     const resp = await axios.put(`${process.env.CENTRAL_CSR_BACKEND_URL}/api/chatbot/update/${req.params.chatbotId}`, form, {
       headers: { ...form.getHeaders(), Authorization: `Bearer ${accessToken}`, "x-workspace-id": workspaceId },

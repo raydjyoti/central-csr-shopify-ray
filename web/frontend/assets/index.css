@@ -16,6 +16,10 @@
 /* Custom brand blue: update Tailwind color token so bg-blue-600/text-blue-600 use our value */
 :root { --color-blue-600: #289EFD; }
 
+/* Simple keyframes for spin (fallback if Tailwind's animate-spin class isn't available) */
+@keyframes central-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+#app .animate-spin { animation: central-spin 3s linear infinite; }
+
 /* Make Tailwind rounded-* utilities more curved in the Shopify app */
 #app {
   --radius-sm: 0.375rem;   /* 6px */

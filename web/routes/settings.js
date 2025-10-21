@@ -214,7 +214,7 @@ settingsRouter.get(
           chat_agent_id: null,
           workspace_id: null,
           workspace_status: "pending",
-          widget_enabled: false,
+          widget_enabled: true,
           widget_config: {},
         }
       );
@@ -264,6 +264,11 @@ settingsRouter.post(
       // Only include widget_enabled if provided (so we don't overwrite unintentionally)
       if (typeof widget_enabled !== "undefined") {
         payload.widget_enabled = !!widget_enabled;
+      }
+
+      // Default to enabled when creating a new settings row (unless explicitly provided)
+      if (!existing && typeof widget_enabled === "undefined") {
+        payload.widget_enabled = true;
       }
 
       let saved = null;

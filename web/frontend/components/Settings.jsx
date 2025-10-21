@@ -1,9 +1,11 @@
 // web/frontend/pages/index.jsx
 import { useEffect, useState } from "react";
-import { Page, Layout, Card, TextField, Button, Banner, Stack, FormLayout, Select, Avatar, Text, Modal, Badge, SkeletonDisplayText, SkeletonBodyText, Spinner } from "@shopify/polaris";
+import { useNavigate } from "react-router-dom";
+import { Page, Layout, Card, TextField, Button, Banner, LegacyStack, FormLayout, Select, Avatar, Text, Modal, Badge, SkeletonDisplayText, SkeletonBodyText, Spinner } from "@shopify/polaris";
 import CentralLogo from "../assets/images/central-logo.svg"
 
 export default function Index() {
+  const navigate = useNavigate();
   const [workspaceId, setWorkspaceId] = useState("");
   const [chatAgentId, setChatAgentId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,23 @@ export default function Index() {
         setChatAgentId(data?.chat_agent_id ?? "");
         setConnectedToCentral(Boolean(data?.central_user_id || data?.workspace_id));
         setShopDomain(data?.shop_domain ?? "");
-        setWorkspaces(Array.isArray(data?.workspaces) ? data.workspaces : []);
+        const list = Array.isArray(data?.workspaces) ? data.workspaces : [];
+        setWorkspaces(list);
+        // If no workspace selected but we have available workspaces, select the first and persist
+        if ((!data?.workspace_id || String(data.workspace_id).trim() === "") && list.length > 0) {
+          const firstId = list[0]?.id || list[0]?.value || "";
+          if (firstId) {
+            try {
+              await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ workspace_id: firstId }),
+              });
+            } catch {}
+            setWorkspaceId(firstId);
+          }
+        }
         setWidgetEnabled(typeof data?.widget_enabled === 'boolean' ? data.widget_enabled : true);
 
         // Detect Central account change and clear stale mappings
@@ -177,13 +195,13 @@ export default function Index() {
           <Layout>
             <Layout.Section>
               <Card sectioned>
-                <Stack alignment="center" distribution="equalSpacing">
-                  <Stack alignment="center" spacing="tight">
+                <LegacyStack alignment="center" distribution="equalSpacing">
+                  <LegacyStack alignment="center" spacing="tight">
                     <img src={CentralLogo} alt="Central" style={{ height: 28 }} />
                     <SkeletonDisplayText size="small" />
-                  </Stack>
+                  </LegacyStack>
                   <SkeletonDisplayText size="small" />
-                </Stack>
+                </LegacyStack>
                 <div style={{ marginTop: 16 }}>
                   <SkeletonBodyText lines={4} />
                 </div>
@@ -210,19 +228,19 @@ export default function Index() {
               )}
 
               <div style={{ marginBottom: 20 }}>
-                <Stack alignment="center" distribution="equalSpacing" spacing="loose">
-                  <Stack alignment="center" spacing="tight">
+                <LegacyStack alignment="center" distribution="equalSpacing" spacing="loose">
+                  <LegacyStack alignment="center" spacing="tight">
                     <img src={CentralLogo} alt="Central" style={{ height: 28 }} />
                     {connectedToCentral ? (
                       <Badge status="success">Connected to Central</Badge>
                     ) : (
                       <Badge status="critical">Not Connected</Badge>
                     )}
-                  </Stack>
+                  </LegacyStack>
                   <Button primary onClick={handleConnectCentral}>
                     {connectedToCentral ? "Re-connect Central" : "Connect Central"}
                   </Button>
-                </Stack>
+                </LegacyStack>
               </div>
 
               <div style={{ marginTop: 20, marginBottom: 20 }}>
@@ -269,7 +287,7 @@ export default function Index() {
                 ) : chatbots.length > 0 ? (
                   <>
                     {(!changingAgent && chatAgentId) ? (
-                      <Stack alignment="center" distribution="equalSpacing" spacing="loose">
+                      <LegacyStack alignment="center" distribution="equalSpacing" spacing="loose">
                         <div>
                           <Text as="p" variant="bodyMd">Current Chat Agent</Text>
                           <Text as="p" variant="bodySm" tone="subdued">
@@ -280,7 +298,7 @@ export default function Index() {
                           </Text>
                         </div>
                         <Button onClick={() => setChangingAgent(true)}>Change Chat Agent</Button>
-                      </Stack>
+                      </LegacyStack>
                     ) : (
                       <Select
                         label="Chat Agents"
@@ -295,14 +313,19 @@ export default function Index() {
                     )}
                   </>
                 ) : (
-                  <Select
-                    label="Chat Agents"
-                    options={[]}
-                    value={""}
-                    onChange={() => {}}
-                    placeholder="No chat agents available"
-                    disabled
-                  />
+                  <div>
+                    <Select
+                      label="Chat Agents"
+                      options={[]}
+                      value={""}
+                      onChange={() => {}}
+                      placeholder="No chat agents available"
+                      disabled
+                    />
+                    <div style={{ marginTop: 8 }}>
+                      <Button primary onClick={() => navigate("/create-agent")}>Create Chat Agent</Button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -318,7 +341,7 @@ export default function Index() {
                 const accent = selected?.brandColor || "#289EFD";
                 return (
                   <div style={{ border: `1px solid ${accent}`, borderLeftWidth: 4, borderRadius: 8, padding: 12, background: "#fff", marginTop: 16, marginBottom: 16 }}>
-                    <Stack alignment="center" spacing="tight">
+                    <LegacyStack alignment="center" spacing="tight">
                       <Avatar name={displayName} source={avatarSrc} size="medium" />
                       <div style={{ marginLeft: 8 }}>
                         <div style={{ fontWeight: 600 }}>{displayName}</div>
@@ -326,13 +349,13 @@ export default function Index() {
                           <Text as="span" variant="bodySm" tone="subdued">{subtitle}</Text>
                         ) : null}
                       </div>
-                    </Stack>
+                    </LegacyStack>
                   </div>
                 );
               })()}
 
                      {/* Toggle: Enable/Disable Chat Agent on storefront */}
-                      <Stack alignment="center" distribution="equalSpacing" style={{ marginTop: 16, marginBottom: 12 }}>
+                      <LegacyStack alignment="center" distribution="equalSpacing" style={{ marginTop: 16, marginBottom: 12 }}>
                 <div>
                   <Text as="p" variant="bodyMd">Widget visibility</Text>
                   <Text as="p" tone="subdued" variant="bodySm">Controls whether the chat widget is active on your storefront</Text>
@@ -372,13 +395,13 @@ export default function Index() {
                     className={`${widgetEnabled ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
                   />
                 </button>
-              </Stack>
+              </LegacyStack>
 
-              <Stack distribution="trailing">
+              <LegacyStack distribution="trailing">
                 <Button primary loading={saving} onClick={handleSave}>
                   Save
                 </Button>
-              </Stack>
+              </LegacyStack>
             </FormLayout>
           </Card>
         </Layout.Section>

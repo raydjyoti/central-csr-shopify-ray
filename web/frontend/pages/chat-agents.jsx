@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Bot, Loader2 } from "lucide-react";
+import CentralLoader from "../components/CentralLoader";
 
 export default function ChatAgentsPage() {
   const [workspaceId, setWorkspaceId] = useState("");
@@ -42,7 +43,7 @@ export default function ChatAgentsPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        <CentralLoader label="Loading chat agents" />
       </div>
     );
   }
@@ -52,13 +53,17 @@ export default function ChatAgentsPage() {
       <div className="rounded-lg bg-red-50 p-4 text-red-800">
         <p>{error}</p>
         <button
-          className="mt-2 rounded bg-red-100 px-3 py-1 text-sm font-medium text-red-800 hover:bg-red-200"
+          className="mt-2 rounded bg-red-100 px-3 py-1 text-sm font-medium text-red-800 hover:bg-red-200 cursor-pointer"
           onClick={() => window.location.reload()}
         >
           Retry
         </button>
       </div>
     );
+  }
+
+  if (!workspaceId) {
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -72,7 +77,7 @@ export default function ChatAgentsPage() {
             </p>
           </div>
           <button
-            className="bg-[#289EFD] hover:bg-[#1f85d9] transition-colors duration-200 text-white px-4 py-2 rounded-md text-lg sm:text-xl"
+            className="bg-[#289EFD] hover:bg-[#1f85d9] transition-colors duration-200 text-white px-4 py-2 rounded-md text-lg sm:text-xl cursor-pointer"
             onClick={() => navigate("/create-agent")}
           >
             + New Agent
@@ -82,11 +87,11 @@ export default function ChatAgentsPage() {
 
       <div className="my-8 w-[95%] mx-auto">
         {agents.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+          <div className="flex h-64 gap-4 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
             <h3 className="mb-2 text-lg font-medium text-gray-900">No chat agents yet</h3>
             <p className="mb-4 text-sm text-gray-500">Get started by creating your first AI chat agent</p>
             <button
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 cursor-pointer"
               onClick={() => navigate("/create-agent")}
             >
               Create Chat Agent
@@ -115,7 +120,7 @@ export default function ChatAgentsPage() {
                     </div>
                   </div>
                   <button
-                    className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-500 cursor-pointer"
                     onClick={() => navigate(`/create-agent?chatbotId=${agent._id || agent.id}`)}
                   >
                     Edit

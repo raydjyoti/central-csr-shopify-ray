@@ -5,7 +5,8 @@ import axios from "axios";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { Spinner } from "@shopify/polaris";
 import { Redirect } from "@shopify/app-bridge/actions";
-import { useEffect, useRef } from "react";
+import CentralLoader from "../CentralLoader";
+import React, { useEffect, useRef } from "react";
 import {
   Bot,
   Eye,
@@ -1055,7 +1056,7 @@ const ScheduleCallSettings: React.FC<ScheduleCallSettingsProps> = ({
                     disabled={isCheckingStatus}
                   >
                     {isCheckingStatus ? (
-                      <Loader2 size={16} className="animate-spin" />
+                      <CentralLoader />
                     ) : (
                       <RefreshCw size={16} />
                     )}
@@ -3859,7 +3860,7 @@ export const ChatbotForm = ({
         className="flex justify-center items-center"
         style={{ minHeight: "60vh" }}
       >
-        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        <CentralLoader />
       </div>
     );
   }

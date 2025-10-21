@@ -104,11 +104,20 @@ app.post(
         callbackUrl: shopify.config.webhooks.path,
         callback: async (topic, shop /*, body, webhookId */) => {
           try {
-            await supabase.from("chats_shopify_shops").delete().eq("shop_domain", shop);
-            // await supabase.from("chats_shopify_settings").delete().eq("shop_domain", shop);
-
+            // Fire-and-forget cleanup to avoid webhook timeout
+            void (async () => {
+              try {
+                await supabase
+                  .from("chats_shopify_shops")
+                  .delete()
+                  .eq("shop_domain", shop);
+                // await supabase.from("chats_shopify_settings").delete().eq("shop_domain", shop);
+              } catch (e) {
+                console.error("APP_UNINSTALLED cleanup error:", e);
+              }
+            })();
           } catch (e) {
-            console.error("APP_UNINSTALLED cleanup error:", e);
+            // Intentionally swallow; we want to return 200 immediately
           }
         },
       },

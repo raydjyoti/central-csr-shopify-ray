@@ -49,9 +49,6 @@ export default defineConfig({
   plugins: [react()],
   // Load Vite env vars from the parent web/ directory so a single Railway env works
   envDir: dirname(fileURLToPath(import.meta.url)) + "/..",
-  resolve: {
-    preserveSymlinks: true,
-  },
   server: {
     host: "localhost",
     port: process.env.FRONTEND_PORT,

@@ -704,7 +704,7 @@ const Step2Form: React.FC<Step2FormProps> = ({
               </div>
             </div>
           )}
-          {formData.popupGreet && (
+          {/* {formData.popupGreet && (
             <div className={styles.formGroup}>
               <div className="flex items-center mt-4 gap-4">
                 <h1 className="text-md font-semibold text-gray-900">
@@ -734,7 +734,7 @@ const Step2Form: React.FC<Step2FormProps> = ({
                 </button>
               </div>
             </div>
-          )}
+          )} */}
         </div>
         {!isMobile && (
           <div className="flex w-1/2 flex-shrink-0 origin-top-right scale-[0.85] items-end justify-end">
@@ -2938,7 +2938,7 @@ export const ChatbotForm = ({
     selectedIntakeFormId: null,
     agentInstructions:
       "You are a friendly and helpful assistant with personality.",
-    showWatermark: true,
+    showWatermark: false,
     streamResponse: true,
     delayPopupTime: 0,
     agentLanguage: "English",
@@ -3000,8 +3000,6 @@ export const ChatbotForm = ({
 
       if (response.status === 200) {
         const data = response.data;
-
-        console.log(data, "✅✅✅");
 
         const fetchedBackendActions = data.quickActions || [];
 
